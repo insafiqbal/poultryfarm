@@ -7,28 +7,35 @@ from datetime import datetime
 import time
 import os
 from werkzeug.utils import secure_filename
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import requests
+import json
+import base64
 import random
 import string
 import threading
 from datetime import timedelta
-from email.mime.base import MIMEBase
-from email import encoders
 from xhtml2pdf import pisa
 import io
 from flask import make_response
+from sqlalchemy import text
 
 app = Flask(__name__)
-# Use a dynamic secret key to invalidate sessions on server restart
-app.config['SECRET_KEY'] = os.urandom(24) 
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-key-change-me")
 CORS(app)
 
 # Database Configuration
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'instance', 'poultry.db')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db_url = os.environ.get("DATABASE_URL")
+if db_url:
+    app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+else:
+    app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + os.path.join(
+        basedir, "instance", "poultry.db"
+    )
+
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config['SQLALCHEMY_DATABASE_URI'] = app.config['SQLALCHEMY_DATABASE_URI'] # Ensure it sticks
 app.config['UPLOAD_FOLDER'] = os.path.join(basedir, 'static', 'uploads', 'receipts')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max upload
 
@@ -43,6 +50,52 @@ def save_receipt(file):
         return f"/static/uploads/receipts/{filename}"
     return None
 
+def send_email_api(to_email, subject, html_content, text_content=None, attachments=None):
+    api_key = os.environ.get("BREVO_API_KEY")
+    sender_email = os.environ.get("EMAIL_SENDER")
+    sender_name = os.environ.get("EMAIL_SENDER_NAME", "Saudi Farms")
+
+    if not api_key or not sender_email:
+        print("Email API not configured")
+        # In dev, we might just print
+        return False
+
+    # Brevo expects 'sender' as object, 'to' as list of objects
+    payload = {
+        "sender": {"name": sender_name, "email": sender_email},
+        "to": [{"email": to_email}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+
+    if text_content:
+        payload["textContent"] = text_content
+
+    if attachments:
+        # Brevo format: list of objects { "content": "base64...", "name": "filename.pdf" }
+        payload["attachment"] = attachments
+
+    headers = {
+        "accept": "application/json",
+        "api-key": api_key,
+        "content-type": "application/json",
+    }
+
+    try:
+        r = requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=15
+        )
+        if 200 <= r.status_code < 300:
+            return True
+        print("Email API error:", r.status_code, r.text)
+        return False
+    except Exception as e:
+        print("Email API exception:", e)
+        return False
+
 db.init_app(app)
 
 login_manager = LoginManager()
@@ -53,132 +106,11 @@ login_manager.init_app(app)
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-with app.app_context():
-    db.create_all()
-    
-
-    # 0. Seed Default User
-    admin_email = "insafiqbal2004@gmail.com"
-    admin = User.query.filter_by(email=admin_email).first()
-    if not admin:
-        admin = User(email=admin_email, name="Insaf Iqbal", is_active=True)
-        admin.set_password("insaf123")
-        db.session.add(admin)
-        db.session.commit()
-        print(f"Seeded default user: {admin_email}")
-    else:
-        # Update existing admin if missing name
-        if not admin.name:
-            admin.name = "Insaf Iqbal"
-            db.session.commit()
-    # Other Schema Migrations
-    try:
-        with db.engine.connect() as conn:
-            # 1. New Table Worker (handled by create_all above)
-            # 2. Add columns to Expense
-            try:
-                conn.execute(text("ALTER TABLE expense ADD COLUMN worker_id INTEGER REFERENCES worker(id)"))
-                print("Migrated: Added worker_id to Expense")
-            except Exception: pass
-            
-            try:
-                conn.execute(text("ALTER TABLE expense ADD COLUMN is_advance BOOLEAN DEFAULT 0"))
-                print("Migrated: Added is_advance to Expense")
-            except Exception: pass
-            
-            # Legacy hima check (keep separate)
-            try:
-                conn.execute(text("ALTER TABLE category ADD COLUMN is_hima BOOLEAN DEFAULT 0"))
-            except Exception: pass
-
-            try:
-                conn.execute(text("ALTER TABLE batch ADD COLUMN opening_balance FLOAT DEFAULT 0.0"))
-                print("Migrated: Added opening_balance to Batch")
-            except Exception: pass
-
-            try:
-                conn.execute(text("ALTER TABLE batch ADD COLUMN opening_balance_by VARCHAR(50)"))
-                print("Migrated: Added opening_balance_by to Batch")
-            except Exception: pass
-
-            try:
-                conn.execute(text("CREATE TABLE IF NOT EXISTS deposit (id INTEGER PRIMARY KEY, batch_id INTEGER NOT NULL, date DATE NOT NULL, amount FLOAT DEFAULT 0.0, description VARCHAR(200), FOREIGN KEY(batch_id) REFERENCES batch(id))"))
-                print("Migrated: Ensure Deposit table exists")
-            except Exception: pass
-
-            try:
-                conn.execute(text("ALTER TABLE deposit ADD COLUMN deposited_by VARCHAR(50)"))
-                print("Migrated: Added deposited_by to Deposit")
-            except Exception: pass
-
-            try:
-                conn.execute(text("ALTER TABLE deposit ADD COLUMN ref_no VARCHAR(50)"))
-                print("Migrated: Added ref_no to Deposit")
-            except Exception: pass
-
-            # Receipt URL Migrations
-            for table in ['expense', 'sale', 'deposit', 'hima_payable']:
-                try:
-                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN receipt_url VARCHAR(300)"))
-                    print(f"Migrated: Added receipt_url to {table}")
-                except Exception: pass
-            
-            # Balance Notification Migration
-            try:
-                conn.execute(text("ALTER TABLE batch ADD COLUMN last_notified_balance FLOAT"))
-                print("Migrated: Added last_notified_balance to Batch")
-            except Exception: pass
-
-    except Exception as e:
-        print(f"Migration Note: {e}")
-        pass # Column likely exists or other non-critical error
-    
-    # Initialize Categories with Ownership (STRICT MODE)
-    hima_defaults = ['Chicks', 'Chicken Feed', 'Medicine']
-    # Note: 'Saw Dust (UMI)' and 'Additional Cost' order
-    farm_defaults = ['Labour', 'Food for Labour', 'Electricity', 'Saw Dust (UMI)', 'Wood (Kolli)', 'Additional Cost']
-    
-    all_allowed = set(hima_defaults + farm_defaults)
-
-    # 1. Cleanup: Remove any category NOT in the allowed list
-    existing_cats = Category.query.all()
-    for cat in existing_cats:
-        if cat.name not in all_allowed:
-            db.session.delete(cat)
-            print(f"Deleted unwanted category: {cat.name}")
-            
-    # 2. Ensure Hima defaults exist
-    for name in hima_defaults:
-        cat = Category.query.filter_by(name=name).first()
-        if not cat:
-            db.session.add(Category(name=name, is_hima=True))
-        else:
-            cat.is_hima = True # Enforce ownership
-
-    # 3. Ensure Farm defaults exist
-    for name in farm_defaults:
-        cat = Category.query.filter_by(name=name).first()
-        if not cat:
-            db.session.add(Category(name=name, is_hima=False))
-        else:
-            cat.is_hima = False # Enforce ownership
-            
-    db.session.commit()
-
 
 # --- Email Helper ---
 def send_otp_email(to_email, otp, action="password reset"):
-    # Retrieve configuration from environment or use provided defaults
-    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 587))
-    sender_email = os.environ.get('SMTP_EMAIL', 'poultryfarms25@gmail.com')
-    sender_password = os.environ.get('SMTP_PASSWORD', 'buck pjmo enys bwqh')
-
     try:
-        msg = MIMEMultipart('alternative')
-        msg['From'] = 'Saudi Farms <' + sender_email + '>'
-        msg['To'] = to_email
-        msg['Subject'] = f'Security OTP: {action.title()}'
+        subject = f'Security OTP: {action.title()}'
 
         # HTML Content (Posh & Impressive)
         html_content = f"""
@@ -201,19 +133,14 @@ def send_otp_email(to_email, otp, action="password reset"):
                             To complete your request for <strong style="color: #0f172a;">{action}</strong>, please use the following security code:
                         </p>
                         
-                        <div style="font-size: 42px; font-weight: 800; color: #0f172a; letter-spacing: 8px; margin: 25px 0; padding: 25px; background-color: #f8fafc; border-radius: 12px; border: 2px dashed #cbd5e1; display: inline-block; width: 80%;">
-                            {otp}
+                        <div style="background-color: #f8fafc; border: 2px dashed #cbd5e1; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                            <span style="font-size: 32px; font-weight: 700; color: #3b82f6; letter-spacing: 4px; font-family: 'Courier New', monospace;">{otp}</span>
                         </div>
                         
-                        <p style="color: #ef4444; font-size: 14px; font-weight: 600; margin-top: 25px;">
-                            <i style="margin-right: 5px;">&#9201;</i> This code expires in 10 minutes.
+                        <p style="font-size: 13px; color: #64748b;">
+                            This code will expire in 10 minutes. <br>
+                            If you did not request this, please secure your account immediately.
                         </p>
-                        
-                        <div style="margin-top: 40px; padding-top: 25px; border-top: 1px solid #f1f5f9;">
-                            <p style="font-size: 13px; color: #94a3b8; line-height: 1.6;">
-                                If you did not initiate this request, your account may be at risk. Please ignore this email or contact support if you have concerns.
-                            </p>
-                        </div>
                     </div>
                     
                     <!-- Footer -->
@@ -228,21 +155,12 @@ def send_otp_email(to_email, otp, action="password reset"):
         </html>
         """
         
-        # Attach both plain and html versions
         plain_text = f"Your OTP for {action} is: {otp}. This code expires in 10 minutes."
-        msg.attach(MIMEText(plain_text, 'plain'))
-        msg.attach(MIMEText(html_content, 'html'))
+        
+        return send_email_api(to_email, subject, html_content, text_content=plain_text)
 
-
-        server = smtplib.SMTP(smtp_server, smtp_port)
-        server.starttls()
-        server.login(sender_email, sender_password)
-        text = msg.as_string()
-        server.sendmail(sender_email, to_email, text)
-        server.quit()
-        return True
     except Exception as e:
-        print(f"Failed to send email: {e}")
+        print(f"Error sending email: {e}")
         return False
 
 
@@ -773,64 +691,49 @@ def send_closed_batch_report(batch_id):
         
         if not recipient_emails: return
 
-        smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-        smtp_port = int(os.environ.get('SMTP_PORT', 587))
-        sender_email = os.environ.get('SMTP_EMAIL', 'poultryfarms25@gmail.com')
-        sender_password = os.environ.get('SMTP_PASSWORD', 'buck pjmo enys bwqh')
-
         subject = f"Saudi Farms: Final Report for Batch {batch.name}"
         filename = f"Final_Report_{batch.name.replace(' ', '_')}.pdf"
 
-        for to_email in recipient_emails:
-            try:
-                msg = MIMEMultipart()
-                msg['From'] = f"Saudi Farms Audit <{sender_email}>"
-                msg['To'] = to_email
-                msg['Subject'] = subject
+        # Prepare Attachment
+        encoded_pdf = base64.b64encode(pdf_content).decode()
+        attachments = [{
+            "content": encoded_pdf,
+            "name": filename
+        }]
 
-                body = f"""
-                <html>
-                <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6;">
-                    <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-                        <div style="background-color: #0f172a; padding: 30px; text-align: center;">
-                            <h2 style="color: #ffffff; margin: 0;">Saudi<span style="color: #3b82f6;">Farms</span></h2>
-                        </div>
-                        <div style="padding: 40px;">
-                            <h3 style="color: #0f172a; margin-top: 0;">Final Batch Settlement Ready</h3>
-                            <p>Hello,</p>
-                            <p>This is an automated notification that <strong>Batch: {batch.name}</strong> has been officially closed and finalized. </p>
-                            <p>Please find the comprehensive financial audit and settlement report attached to this email for your records.</p>
-                            <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 25px 0;">
-                                <strong>Batch Details:</strong><br/>
-                                Reference: {batch.name}<br/>
-                                Closed On: {batch.end_date or datetime.now().date()}
-                            </div>
-                            <p>Thank you for your partnership.</p>
-                        </div>
-                        <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 11px; color: #94a3b8;">
-                            &copy; 2025 Saudi Farms Management System &bull; Confidential Record
-                        </div>
+        body = f"""
+        <html>
+        <body style="font-family: Arial, sans-serif; color: #1e293b; line-height: 1.6;">
+            <div style="max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                <div style="background-color: #0f172a; padding: 30px; text-align: center;">
+                    <h2 style="color: #ffffff; margin: 0;">Saudi<span style="color: #3b82f6;">Farms</span></h2>
+                </div>
+                <div style="padding: 40px;">
+                    <h3 style="color: #0f172a; margin-top: 0;">Final Batch Settlement Ready</h3>
+                    <p>Hello,</p>
+                    <p>This is an automated notification that <strong>Batch: {batch.name}</strong> has been officially closed and finalized. </p>
+                    <p>Please find the comprehensive financial audit and settlement report attached to this email for your records.</p>
+                    <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 25px 0;">
+                        <strong>Batch Details:</strong><br/>
+                        Reference: {batch.name}<br/>
+                        Closed On: {batch.end_date or datetime.now().date()}
                     </div>
-                </body>
-                </html>
-                """
-                msg.attach(MIMEText(body, 'html'))
+                    <p>Thank you for your partnership.</p>
+                </div>
+                <div style="background-color: #f1f5f9; padding: 20px; text-align: center; font-size: 11px; color: #94a3b8;">
+                    &copy; 2025 Saudi Farms Management System &bull; Confidential Record
+                </div>
+            </div>
+        </body>
+        </html>
+        """
 
-                # Attachment
-                part = MIMEBase('application', 'octet-stream')
-                part.set_payload(pdf_content)
-                encoders.encode_base64(part)
-                part.add_header('Content-Disposition', f'attachment; filename="{filename}"')
-                msg.attach(part)
-
-                server = smtplib.SMTP(smtp_server, smtp_port)
-                server.starttls()
-                server.login(sender_email, sender_password)
-                server.sendmail(sender_email, to_email, msg.as_string())
-                server.quit()
+        for to_email in recipient_emails:
+            success = send_email_api(to_email, subject, body, attachments=attachments)
+            if success:
                 print(f"Sent closed report to {to_email}")
-            except Exception as e:
-                print(f"Failed to send report to {to_email}: {e}")
+            else:
+                print(f"Failed to send report to {to_email}")
 
 @app.route('/api/batches/<int:batch_id>/report', methods=['GET'])
 @login_required
@@ -1359,11 +1262,6 @@ def confirm_reset():
 
 # --- Background Balance Checker ---
 def send_balance_update_email(batch_name, current_balance, previous_balance, recipients):
-    smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
-    smtp_port = int(os.environ.get('SMTP_PORT', 587))
-    sender_email = os.environ.get('SMTP_EMAIL', 'poultryfarms25@gmail.com')
-    sender_password = os.environ.get('SMTP_PASSWORD', 'buck pjmo enys bwqh')
-
     subject = f"Saudi Farms: Balance Update for {batch_name}"
     
     change = current_balance - (previous_balance if previous_balance is not None else 0)
@@ -1389,10 +1287,10 @@ def send_balance_update_email(batch_name, current_balance, previous_balance, rec
                 </div>
 
                 <p>Login to the dashboard for full details.</p>
-                <a href="http://localhost:5000" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Go to Dashboard</a>
+                <a href="https://saudi-farms-scheduler.onrender.com" style="display: inline-block; background: #3b82f6; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 10px;">Go to Dashboard</a>
             </div>
             <div style="background: #f1f5f9; padding: 10px; text-align: center; font-size: 0.8rem; color: #64748b;">
-                &copy; {datetime.now().year} Saudi Farms Manager
+                &copy; 2025 Saudi Farms Manager
             </div>
         </div>
       </body>
@@ -1400,20 +1298,9 @@ def send_balance_update_email(batch_name, current_balance, previous_balance, rec
     """
 
     for to_email in recipients:
-        try:
-            msg = MIMEMultipart()
-            msg['From'] = f"Saudi Farms Notification <{sender_email}>"
-            msg['To'] = to_email
-            msg['Subject'] = subject
-            msg.attach(MIMEText(body, 'html'))
-
-            server = smtplib.SMTP(smtp_server, smtp_port)
-            server.starttls()
-            server.login(sender_email, sender_password)
-            server.send_message(msg)
-            server.quit()
-        except Exception as e:
-            print(f"Failed to send balance email to {to_email}: {e}")
+        success = send_email_api(to_email, subject, body)
+        if not success:
+            print(f"Failed to send balance email to {to_email}")
 
 def background_balance_checker():
     """Checks active batch balance every 2 minutes and emails if changed."""
