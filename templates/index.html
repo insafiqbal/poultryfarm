@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Saudi Farms Manager</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}?v=8">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Top Navigation -->
+        <nav class="top-nav">
+            <div class="logo-area">
+                <svg width="32" height="32" viewBox="0 0 576 512" fill="var(--accent)"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <!-- Font Awesome Free 6.x - fa-crow (simulated as minimal chicken) + modification -->
+                    <path
+                        d="M576 136c0 22.09-17.91 40-40 40c-.248 0-.4551-.1266-.7031-.1308l-5.025 10.97C541.4 213.5 548 243.2 548 275.2c0 96.53-66.93 177.9-160.1 201.2C366.1 498.4 345.5 512 320 512c-44.18 0-80-35.82-80-80V274.6c-21.6 5.289-43.5 8.139-65.77 8.139l-18.73 .001c-6.176 0-11.23-5.045-11.23-11.23L144.2 239.1c0-62.86 50.95-113.8 113.8-113.8h21.49c18.01-44.91 58.07-79.16 106.8-87.49C381.5 12.63 376.1 4.791 367.4 1.346c-9.063-3.08-18.57 2.053-22.13 10.96L336 34.5c-4.469 11.2 5.562 21.5 16.47 18.09C369.3 47.98 384 64.91 384 84c0 14.19-7.975 26.54-19.86 33.45c-4.969 2.895-5.322 9.771-1.344 13.88l13.12 13.59c3.219 3.328 8.656 2.828 11.12-1.125c5.344-8.547 13.72-14.88 23.59-17.47c17.69-4.812 30.25-17.92 36.69-34.92c2.031-5.352 9.062-6.539 12.91-2.312l5.594 6.133c3.844 4.219 10.69 3.031 12.72-2.312C481.6 84.77 483.5 76.55 484 68c.625-11.28-8.156-20.31-19.41-20.31c-6.859 0-13.04 3.414-16.7 8.617c-3.125 4.391-10.38 2.055-10.22-3.32l.375-10.88C438.4 18.27 458 0 481.2 0C522.7 0 557.5 28.52 569.5 66.25C573.8 79.52 576 93.59 576 108V136zM32.06 195.4l55.88 22.36c8.531 3.406 12.72 12.92 9.312 21.45L88 262.3c-2.344 5.867-8.91 8.867-14.65 6.883l-55.33-22.13C7.456 242.9-1.997 227.8 7.643 216.9l5 5.75L32.06 195.4z" />
+                </svg>
+                <h1>Saudi<span class="highlight">Farms</span></h1>
+            </div>
+            <div class="nav-links">
+                <button id="navBatches" class="nav-btn active">Batches</button>
+                <button id="navContribution" class="nav-btn">Contribution</button>
+                <button id="navWorkers" class="nav-btn">Workers</button>
+            </div>
+
+            <div class="user-profile">
+                <button id="userDropdownBtn" class="user-btn" onclick="window.toggleUserDropdown(event)">
+                    <div class="user-avatar">
+                        <i class="fa-solid fa-user-tie"></i>
+                    </div>
+                    <span>{{ current_user.name or 'User' }}</span>
+                    <i class="fa-solid fa-chevron-down"></i>
+                </button>
+                <div id="userDropdown" class="user-dropdown-menu hidden">
+                    <div class="dropdown-header">
+                        <p class="user-name">{{ current_user.name or 'User' }}</p>
+                        <p class="user-email">{{ current_user.email }}</p>
+                    </div>
+                    <div class="dropdown-divider"></div>
+                    <a href="javascript:void(0)" class="dropdown-item" onclick="window.openSettingsModal()">
+                        <i class="fa-solid fa-gear"></i> Settings
+                    </a>
+                    <a href="/logout" class="dropdown-item logout">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i> Logout
+                    </a>
+                </div>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <!-- View: Batches List -->
+            <section id="batchesView" class="view-section">
+                <div class="section-header">
+                    <h2>Manage Batches</h2>
+                    <button id="addBatchBtn" class="btn-primary-glow">
+                        <i class="fa-solid fa-plus"></i> New Batch
+                    </button>
+                </div>
+                <div id="batchGrid" class="batch-grid">
+                    <!-- Batch Cards will be loaded here -->
+                </div>
+            </section>
+
+            <!-- View: Batch Detail -->
+            <section id="batchDetailView" class="view-section hidden">
+                <header class="detail-header">
+                    <button id="backToBatchesBtn" class="btn-icon">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <div style="flex:1; margin-left: 1rem;">
+                        <h2 id="currentBatchTitle">Batch Name</h2>
+                        <span id="currentDate" class="date-display">--/--/----</span>
+                    </div>
+
+                    <!-- Batch Age Display -->
+                    <div id="batchAgeDisplay" class="batch-age-badge">
+                        <span class="age-label">Batch Age</span>
+                        <span class="age-value">0</span>
+                        <span class="age-unit">Days</span>
+                    </div>
+
+                    <button id="endBatchBtn" class="btn-secondary danger-glow">
+                        <i class="fa-solid fa-lock"></i> End Batch
+                    </button>
+                    <button id="reopenBatchBtn" class="btn-primary-glow hidden" style="background:var(--accent);">
+                        <i class="fa-solid fa-unlock"></i> Reopen Batch
+                    </button>
+                    <button id="downloadReportBtn" class="btn-primary-glow" onclick="window.downloadReport()"
+                        style="background: #10b981; border: none; margin-left: 10px;">
+                        <i class="fa-solid fa-file-pdf"></i> Report
+                    </button>
+                </header>
+
+                <div class="sub-nav">
+                    <button class="sub-nav-btn active" onclick="switchSubView('expenses')">Expenses</button>
+                    <button class="sub-nav-btn" onclick="switchSubView('sales')">Chicken Sales</button>
+                    <button class="sub-nav-btn" onclick="switchSubView('profit')">Profit Calculator</button>
+                    <button class="sub-nav-btn" onclick="switchSubView('balance')">Bank Balance</button>
+                    <button class="sub-nav-btn estimator-highlight" onclick="switchSubView('estimator')">
+                        <i class="fa-solid fa-calculator"></i> Profit Estimator
+                    </button>
+                </div>
+
+                <!-- Sub View: Expenses -->
+                <div id="subview-expenses" class="dashboard-area">
+                    <!-- Tabs Container for Bracket Layout -->
+                    <div id="bracketTabsContainer" class="tabs-bracket-layout">
+                        <!-- JS injects groups here -->
+                    </div>
+
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3 id="activeCategoryTitle">Expenses</h3>
+                            <div style="display:flex; gap:10px;">
+                                <button id="addExpenseBtn" class="btn-primary-glow"><i class="fa-solid fa-plus"></i> Add
+                                    Expense</button>
+                                <button id="manageWorkersBtn" class="btn-secondary hidden"><i
+                                        class="fa-solid fa-users-gear"></i> Settle Payment</button>
+                            </div>
+                        </div>
+
+                        <div class="table-container glass-panel">
+                            <table class="fancy-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 80px;">Ref</th>
+                                        <th style="width: 130px;">Date</th>
+                                        <th>Subject</th>
+                                        <th style="width: 80px;">Qty</th>
+                                        <th style="width: 100px;">Price</th>
+                                        <th style="width: 120px;">Total</th>
+                                        <th style="width: 40px;"><i class="fa-solid fa-receipt"></i></th>
+                                        <th style="width: 60px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="expenseTableBody">
+                                    <!-- Loaded by JS -->
+                                </tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td colspan="5" style="text-align: right; padding-right: 1rem;">Grand Total</td>
+                                        <td id="categoryTotal">0.00</td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Sub View: Sales -->
+                <div id="subview-sales" class="dashboard-area hidden">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3>Chicken Sales</h3>
+                            <button id="addSaleBtn" class="btn-secondary">
+                                <i class="fa-solid fa-sack-dollar"></i> Add Sale
+                            </button>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="fancy-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>LOAD</th>
+                                        <th>Count</th>
+                                        <th>Weight (kg)</th>
+                                        <th>Price/kg</th>
+                                        <th>Total</th>
+                                        <th><i class="fa-solid fa-receipt"></i></th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="salesTableBody"></tbody>
+                                <tfoot>
+                                    <tr class="total-row">
+                                        <td colspan="5">Total Sales</td>
+                                        <td id="grandTotalSales">0.00</td>
+                                        <td></td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub View: Profit -->
+                <div id="subview-profit" class="dashboard-area hidden">
+                    <div id="profitContent" class="profit-dashboard">
+                        <!-- JS renders content here -->
+                    </div>
+                </div>
+
+                <!-- Sub View: Bank Balance -->
+                <div id="subview-balance" class="dashboard-area hidden">
+                    <div class="content-card">
+                        <div class="card-header">
+                            <h3>Bank Balance</h3>
+                        </div>
+
+                        <!-- Balance Dashboard -->
+                        <div class="balance-dashboard">
+                            <!-- Opening Balance / Total Funds Card -->
+                            <div class="balance-card opening-card">
+                                <div class="balance-icon"><i class="fa-solid fa-wallet"></i></div>
+                                <div class="balance-info">
+                                    <span>Total Available Funds</span>
+                                    <h2 id="displayTotalFunds">0.00</h2>
+                                </div>
+                                <button id="manageFundsBtn" class="btn-primary-glow"
+                                    style="padding: 10px 20px; font-size: 0.9rem; align-self: stretch;"
+                                    onclick="window.openManageFundsModal()">
+                                    <i class="fa-solid fa-sliders"></i> Manage Funds
+                                </button>
+                            </div>
+
+                            <!-- Minus Symbol -->
+                            <div class="balance-operator"><i class="fa-solid fa-minus"></i></div>
+
+                            <!-- Expenses Card -->
+                            <div class="balance-card expense-card">
+                                <div class="balance-icon"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                                <div class="balance-info">
+                                    <span>Farm Expenses</span>
+                                    <h2 id="displayFarmExpenses">0.00</h2>
+                                </div>
+                            </div>
+
+                            <!-- Equals Symbol -->
+                            <div class="balance-operator"><i class="fa-solid fa-equals"></i></div>
+
+                            <!-- Remaining Balance Card -->
+                            <div class="balance-card net-card">
+                                <div class="balance-icon"><i class="fa-solid fa-building-columns"></i></div>
+                                <div class="balance-info">
+                                    <span>Remaining Balance</span>
+                                    <h2 id="displayRemainingBalance">0.00</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Deposits Table -->
+                    <div class="content-card" style="margin-top: 2rem;">
+                        <div class="card-header">
+                            <h3><i class="fa-solid fa-list-ul"></i> Deposit History</h3>
+                        </div>
+                        <div class="table-container">
+                            <table class="fancy-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ref #</th>
+                                        <th>By</th>
+                                        <th>Date</th>
+                                        <th>Description</th>
+                                        <th class="text-right">Amount</th>
+                                        <th><i class="fa-solid fa-receipt"></i></th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="depositsTableBody">
+                                    <!-- Loaded by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sub View: Profit Estimator -->
+                <div id="subview-estimator" class="dashboard-area hidden">
+                    <div class="estimator-grid">
+                        <!-- Sales Estimator -->
+                        <div class="calculator-card">
+                            <div class="card-header">
+                                <h3><i class="fa-solid fa-cart-shopping text-gold"></i> Sales Estimation</h3>
+                            </div>
+                            <div class="estimate-row">
+                                <span>Total Birds</span>
+                                <div class="estimate-input-group">
+                                    <input type="text" id="estBirds" class="estimate-input" value="0">
+                                </div>
+                            </div>
+                            <div class="estimate-row">
+                                <span>Average weight (kg)</span>
+                                <div class="estimate-input-group">
+                                    <input type="text" id="estWeight" class="estimate-input" value="0">
+                                </div>
+                            </div>
+                            <div class="estimate-row">
+                                <span>Price per kg</span>
+                                <div class="estimate-input-group">
+                                    <input type="text" id="estPrice" class="estimate-input" value="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Expense Estimator -->
+                        <div class="calculator-card">
+                            <div class="card-header"
+                                style="display: flex; justify-content: space-between; align-items: center;">
+                                <h3><i class="fa-solid fa-file-invoice-dollar text-red"></i> Expense Estimation</h3>
+                            </div>
+
+                            <!-- Hima Expenses Section -->
+                            <div class="estimator-sub-section"
+                                style="margin-top: 1rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                <h4
+                                    style="color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; display: flex; align-items: center; gap: 8px;">
+                                    <i class="fa-solid fa-fort-awesome" style="color: #f87171;"></i> HIMA EXPENSES
+                                </h4>
+                                <div class="estimate-row">
+                                    <span>Chicks Quantity</span>
+                                    <input type="text" id="estChickQty" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Per Chick Price</span>
+                                    <input type="text" id="estChickUnitPrice" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Total Chick Cost</span>
+                                    <input type="text" id="estChickCost" class="estimate-input" readonly value="0"
+                                        style="background: rgba(255,255,255,0.05);">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Medicine</span>
+                                    <input type="text" id="estMedicine" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>SAW dust (UMI)</span>
+                                    <input type="text" id="estSawDust" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Wood (Kolli)</span>
+                                    <input type="text" id="estWood" class="estimate-input" value="0">
+                                </div>
+                            </div>
+
+                            <!-- Farm Expenses Section -->
+                            <div class="estimator-sub-section"
+                                style="margin-top: 1.5rem; padding: 1rem; background: rgba(255,255,255,0.03); border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h4
+                                        style="color: var(--text-secondary); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;">
+                                        <i class="fa-solid fa-wheat-awn" style="color: #60a5fa;"></i> FARM EXPENSES
+                                    </h4>
+                                    <button onclick="window.addExtraExpense()" class="btn-icon"
+                                        title="Add Other Expense"
+                                        style="background: rgba(96, 165, 250, 0.1); color: #60a5fa; width: 28px; height: 28px; border-radius: 6px;">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Feed Bags (Total)</span>
+                                    <input type="text" id="estFeedBags" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Price per Bag</span>
+                                    <input type="text" id="estFeedPrice" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Labour Cost</span>
+                                    <input type="text" id="estLabour" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Food for Labours</span>
+                                    <input type="text" id="estFoodLabour" class="estimate-input" value="0">
+                                </div>
+                                <div class="estimate-row">
+                                    <span>Other Costs</span>
+                                    <input type="text" id="estOtherCost" class="estimate-input" value="0">
+                                </div>
+                                <!-- Extra Expenses Container -->
+                                <div id="extraExpensesContainer" style="margin-top: 10px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Results Panel -->
+                        <div class="result-panel">
+                            <div class="result-summary">
+                                <div class="result-item">
+                                    <h4>Estimated Sales</h4>
+                                    <h2 id="resTotalSales" class="text-green">0</h2>
+                                </div>
+                                <div class="result-item">
+                                    <h4>Estimated Expenses</h4>
+                                    <h2 id="resTotalExpenses" class="text-red">0</h2>
+                                </div>
+                                <div class="result-item">
+                                    <h4>Projected Profit</h4>
+                                    <h2 id="resNetProfit" class="text-gold">0</h2>
+                                </div>
+                            </div>
+
+                            <!-- Payables to Hima Section -->
+                            <div class="payables-adjust-section"
+                                style="margin-top: 2rem; padding-top: 2rem; border-top: 1px dashed rgba(255,255,255,0.1);">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                                    <h4
+                                        style="color: var(--text-secondary); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px;">
+                                        Payables to HIMA (Deducted from Farm Share)
+                                    </h4>
+                                    <button onclick="window.addHimaPayable()" class="btn-icon"
+                                        style="background: rgba(16, 185, 129, 0.1); color: #10b981; width: 30px; height: 30px; border-radius: 6px;">
+                                        <i class="fa-solid fa-plus"></i>
+                                    </button>
+                                </div>
+                                <div id="himaPayablesContainer"></div>
+                            </div>
+
+                            <div class="profit-split-visual">
+                                <div class="split-box hima">
+                                    <h4 style="color:var(--text-secondary); margin-bottom:1rem;">HIMA SHARE (<span
+                                            id="resHimaPercent">0</span>%)</h4>
+                                    <h2 id="resHimaShare" class="text-red">0</h2>
+                                </div>
+                                <div class="split-box farm">
+                                    <h4 style="color:var(--text-secondary); margin-bottom:1rem;">FARM SHARE (<span
+                                            id="resFarmPercent">0</span>%)</h4>
+                                    <h2 id="resFarmShare" class="text-green">0</h2>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Settings (Minimal) -->
+            <section id="settingsView" class="view-section hidden">
+                <div class="settings-container">
+                    <header class="settings-header">
+                        <button onclick="window.location.reload()" class="minimal-btn"><i
+                                class="fa-solid fa-arrow-left"></i>
+                            Back</button>
+                        <h2>System Settings</h2>
+                    </header>
+
+                    <!-- User Management Section -->
+                    <div class="settings-section">
+                        <div onclick="window.toggleSettingsSection('userMgmtSection')"
+                            class="settings-accordion-header">
+                            <h3>User Management</h3>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <!-- Content -->
+                        <div id="userMgmtSection" class="settings-accordion-content">
+                            <div class="settings-card">
+                                <div class="card-head">
+                                    <h4>System Users</h4>
+                                    <button class="minimal-btn primary" onclick="window.openAddUserModal()">
+                                        <i class="fa-solid fa-user-plus"></i> Add User
+                                    </button>
+                                </div>
+                                <table class="minimal-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="usersTableBody">
+                                        <!-- Populated by JS -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Security Section -->
+                    <div class="settings-section">
+                        <div onclick="window.toggleSettingsSection('securitySection')"
+                            class="settings-accordion-header">
+                            <h3>Security</h3>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <!-- Content -->
+                        <div id="securitySection" class="settings-accordion-content" style="display:none;">
+                            <div class="settings-card" style="max-width: 500px; position:relative; overflow:hidden;">
+                                <div class="card-head">
+                                    <h4><i class="fa-solid fa-shield-halved text-accent"></i> Change Password</h4>
+                                </div>
+                                <p style="color:var(--text-secondary); font-size:0.9rem; margin-bottom:1.5rem;">
+                                    To ensure account security, an OTP will be sent to your registered email before you
+                                    can change your password.
+                                </p>
+
+                                <!-- Step 1: Request OTP -->
+                                <div id="changePassStep1" style="text-align: center; padding: 1rem 0;">
+                                    <button class="btn-primary-glow" id="reqChangeOtpBtn"
+                                        onclick="window.requestChangePasswordOtp()"
+                                        style="width:100%; justify-content:Center;">
+                                        <i class="fa-regular fa-paper-plane"></i> Send OTP to Email
+                                    </button>
+                                </div>
+
+                                <!-- Step 2: Verify & Change -->
+                                <div id="changePassStep2" style="display:none; animation: fadeIn 0.4s ease;">
+                                    <div class="settings-input-group">
+                                        <label><i class="fa-solid fa-key"></i> Enter OTP</label>
+                                        <input type="text" id="changePassOtp" class="fancy-input"
+                                            placeholder="6-digit code"
+                                            style="width: 100%; letter-spacing: 2px; text-align: center; font-weight: bold; font-size: 1.2rem;">
+                                    </div>
+                                    <div class="settings-input-group">
+                                        <label>New Password</label>
+                                        <input type="password" id="newPasswordInput" class="fancy-input"
+                                            placeholder="New strong password" style="width: 100%;">
+                                    </div>
+                                    <div class="settings-input-group">
+                                        <label>Confirm Password</label>
+                                        <input type="password" id="confirmPasswordInput" class="fancy-input"
+                                            placeholder="Repeat password" style="width: 100%;">
+                                    </div>
+                                    <div style="display: flex; gap: 10px; margin-top: 1.5rem;">
+                                        <button class="minimal-btn" onclick="window.resetChangePassUI()"
+                                            style="flex:1;">Cancel</button>
+                                        <button class="btn-primary-glow" onclick="window.submitChangePassword()"
+                                            style="flex:2; justify-content:center;">
+                                            Update Password
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- View: Contribution (Placeholder) -->
+            <section id="contributionView" class="view-section hidden">
+                <div class="empty-state">
+                    <i class="fa-solid fa-hand-holding-dollar"></i>
+                    <h2>Contribution</h2>
+                    <p>Feature coming soon...</p>
+                </div>
+            </section>
+
+            <!-- Workers Management View -->
+            <section id="workersView" class="view-section hidden">
+                <div class="section-header">
+                    <h2>Worker Management</h2>
+                    <button id="openAddWorkerModalBtn" class="btn-primary-glow">
+                        <i class="fa-solid fa-user-plus"></i> Add Worker
+                    </button>
+                </div>
+                <div class="table-container glass-panel">
+                    <table class="data-table fancy-table" id="workersTable">
+                        <thead>
+                            <tr>
+                                <th>Emp ID</th>
+                                <th>Name</th>
+                                <th>DOB</th>
+                                <th>Age</th>
+                                <th>Phone</th>
+                                <th>Address</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Workers loaded here -->
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="manageFundsModal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 600px;">
+            <span class="close-modal" onclick="closeModal(manageFundsModal)">&times;</span>
+            <h2><i class="fa-solid fa-wallet"></i> Manage Funds</h2>
+            <div class="modal-divider"></div>
+
+            <!-- 1. Opening Balance -->
+            <div class="fund-section"
+                style="margin-bottom: 2rem; border-bottom: 1px solid var(--glass-border); padding-bottom: 1.5rem;">
+                <h4 style="color:var(--text-secondary); margin-bottom:15px;">Setting Opening Balance</h4>
+                <!-- Date and Reference UI -->
+                <div class="form-group" style="margin-bottom: 15px;">
+                    <label>Opening Date</label>
+                    <input type="date" id="obs_Date" class="fancy-input" style="width: 100%;">
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <!-- Headers -->
+                    <div
+                        style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; color: var(--text-secondary); font-size: 0.8rem; padding: 0 5px;">
+                        <span>Source</span>
+                        <span>Reference</span>
+                        <span>Amount</span>
+                    </div>
+
+                    <!-- Rows -->
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                        <label style="margin:0;">Farm Money</label>
+                        <input type="text" id="obs_Ref_Farm" placeholder="Ref" class="fancy-input" style="width:100%;">
+                        <input type="number" id="obs_Farm" placeholder="0.00" class="fancy-input" style="width:100%;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                        <label style="margin:0;">Kaleel</label>
+                        <input type="text" id="obs_Ref_Kaleel" placeholder="Ref" class="fancy-input"
+                            style="width:100%;">
+                        <input type="number" id="obs_Kaleel" placeholder="0.00" class="fancy-input" style="width:100%;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                        <label style="margin:0;">Iqbal</label>
+                        <input type="text" id="obs_Ref_Iqbal" placeholder="Ref" class="fancy-input" style="width:100%;">
+                        <input type="number" id="obs_Iqbal" placeholder="0.00" class="fancy-input" style="width:100%;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                        <label style="margin:0;">Farhan</label>
+                        <input type="text" id="obs_Ref_Farhan" placeholder="Ref" class="fancy-input"
+                            style="width:100%;">
+                        <input type="number" id="obs_Farhan" placeholder="0.00" class="fancy-input" style="width:100%;">
+                    </div>
+                </div>
+                <button onclick="saveOpeningBalanceModal()" class="btn-primary-glow"
+                    style="width:100%; margin-top: 15px;">
+                    Update Opening Balances
+                </button>
+            </div>
+
+            <!-- 2. Add New Deposit -->
+            <div class="fund-section">
+                <h4 style="color:var(--text-secondary); margin-bottom:15px;">Add Additional Deposit</h4>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>Ref #</label>
+                        <input type="text" id="modalDepositRef" placeholder="Reference No" class="fancy-input"
+                            style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>By Who</label>
+                        <select id="modalDepositBy" class="fancy-input" style="width:100%;">
+                            <option value="Kaleel">Kaleel</option>
+                            <option value="Iqbal">Iqbal</option>
+                            <option value="Farhan">Farhan</option>
+                        </select>
+                    </div>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                    <div class="form-group">
+                        <label>Date</label>
+                        <input type="date" id="modalDepositDate" class="fancy-input" style="width:100%;">
+                    </div>
+                    <div class="form-group">
+                        <label>Amount</label>
+                        <input type="number" id="modalDepositAmount" placeholder="0.00" class="fancy-input"
+                            style="width:100%;">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label>Description</label>
+                    <input type="text" id="modalDepositDesc" placeholder="Note / Description" class="fancy-input"
+                        style="width:100%;">
+                </div>
+                <!-- Receipt Upload -->
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label><i class="fa-solid fa-camera"></i> Upload Receipt (Optional)</label>
+                    <input type="file" id="modalDepositReceipt" class="fancy-input" accept="image/*">
+                </div>
+                <button onclick="submitDepositModal()" class="btn-primary-glow" style="width:100%;"><i
+                        class="fa-solid fa-plus"></i> Add Deposit</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="batchModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2>Create New Batch</h2>
+            <div class="form-group">
+                <label>Batch Name</label>
+                <input type="text" id="newBatchName" placeholder="e.g., Winter Batch 2024">
+            </div>
+            <div class="form-group">
+                <label>Start Date</label>
+                <input type="date" id="newBatchDate">
+            </div>
+            <button id="saveBatchBtn" class="btn-primary-glow">Create Batch</button>
+        </div>
+    </div>
+
+    <div id="endBatchModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2><i class="fa-solid fa-flag-checkered text-red"></i> End Batch</h2>
+            <p style="color:var(--text-secondary); margin-bottom:1rem;">To close this batch, you must verify your
+                identity with an OTP sent to your email.</p>
+
+            <!-- Step 1: Request OTP -->
+            <div id="endBatchStep1" style="text-align: center;">
+                <button id="reqEndBatchOtpBtn" class="btn-primary-glow" onclick="requestBatchActionOtp('end')"
+                    style="width:100%; justify-content:center;">
+                    <i class="fa-regular fa-paper-plane"></i> Send OTP
+                </button>
+            </div>
+
+            <!-- Step 2: Confirm -->
+            <div id="endBatchStep2" style="display:none; animation: fadeIn 0.4s ease;">
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" id="endBatchDate">
+                </div>
+                <div class="form-group">
+                    <label>Enter OTP</label>
+                    <input type="text" id="endBatchOtp" class="fancy-input" placeholder="6-digit code"
+                        style="text-align: center; font-weight: bold; letter-spacing: 2px;">
+                </div>
+                <button id="confirmEndBatchBtn" class="btn-primary-glow"
+                    style="background: #ef4444; width:100%; margin-top:10px;">
+                    Confirm End Batch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reopen Batch OTP Modal (New) -->
+    <div id="reopenBatchModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2><i class="fa-solid fa-box-open text-green"></i> Reopen Batch</h2>
+            <p style="color:var(--text-secondary); margin-bottom:1rem;">Security verification required to reopen a
+                closed batch.</p>
+
+            <!-- Step 1: Request OTP -->
+            <div id="reopenBatchStep1" style="text-align: center;">
+                <button id="reqReopenBatchOtpBtn" class="btn-primary-glow" onclick="requestBatchActionOtp('reopen')"
+                    style="width:100%; justify-content:center;">
+                    <i class="fa-regular fa-paper-plane"></i> Send OTP
+                </button>
+            </div>
+
+            <!-- Step 2: Confirm -->
+            <div id="reopenBatchStep2" style="display:none; animation: fadeIn 0.4s ease;">
+                <div class="form-group">
+                    <label>Enter OTP</label>
+                    <input type="text" id="reopenBatchOtp" class="fancy-input" placeholder="6-digit code"
+                        style="text-align: center; font-weight: bold; letter-spacing: 2px;">
+                </div>
+                <button id="confirmReopenBatchBtn" class="btn-primary-glow"
+                    style="background: #10b981; width:100%; margin-top:10px;">
+                    Confirm Reopen
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Batch OTP Modal -->
+    <div id="deleteBatchModal" class="modal">
+        <div class="modal-content glass-panel" style="border-color:#ef4444;">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2><i class="fa-solid fa-trash-can text-red"></i> Delete Batch</h2>
+            <p style="color:var(--text-secondary); margin-bottom:1rem;">
+                <strong>Warning:</strong> Deleting a batch will permanently remove all associated expenses, sales, and
+                fund records for this batch. This action cannot be undone.
+            </p>
+
+            <!-- Combined OTP Section -->
+            <div id="deleteBatchOtpSection" style="margin-top: 1.5rem;">
+                <div class="form-group">
+                    <button id="reqDeleteBatchOtpBtn" class="btn-primary-glow" onclick="requestBatchActionOtp('delete')"
+                        style="width:100%; justify-content:center; background:#ef4444; margin-bottom: 1rem;">
+                        <i class="fa-regular fa-paper-plane"></i> Send OTP to Delete
+                    </button>
+                </div>
+
+                <div class="form-group" style="border-top: 1px solid var(--glass-border); padding-top: 1.5rem;">
+                    <label>Enter OTP to Confirm Deletion</label>
+                    <input type="text" id="deleteBatchOtp" class="fancy-input" placeholder="6-digit code"
+                        style="text-align: center; font-weight: bold; letter-spacing: 2px;">
+                </div>
+
+                <button id="confirmDeleteBatchBtn" class="btn-primary-glow" onclick="confirmDeleteBatch()"
+                    style="background: #ef4444; width:100%; margin-top:10px;">
+                    Permanently Delete Batch
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="expenseModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="expenseModalTitle">Add New Expense</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="expDate">
+                </div>
+                <div class="form-group">
+                    <label>Ref. No</label>
+                    <input type="text" id="expRef" placeholder="#001">
+                </div>
+                <div class="form-group full-width">
+                    <label>Subject</label>
+                    <input type="text" id="expSubject" placeholder="Brief description">
+                </div>
+                <div class="form-group">
+                    <label>Quantity</label>
+                    <input type="text" id="expQty" placeholder="0" class="fancy-input"
+                        oninput="window.formatCommaInput(this); window.updateExpenseTotal();">
+                </div>
+                <div class="form-group">
+                    <label>Unit Price</label>
+                    <input type="text" id="expPrice" placeholder="0.00" class="fancy-input"
+                        oninput="window.formatCommaInput(this); window.updateExpenseTotal();">
+                </div>
+                <div class="form-group">
+                    <label>Total</label>
+                    <input type="text" id="expTotal" readonly placeholder="0.00" class="fancy-input">
+                </div>
+
+                <!-- Worker Section (Hidden by default, shown for Labour) -->
+                <div id="workerSection" class="full-width hidden">
+                    <div class="form-group">
+                        <label>Worker</label>
+                        <div id="expWorkerContainer"></div>
+                    </div>
+                    <div class="form-group" id="advanceCheckboxContainer">
+                        <input type="checkbox" id="expIsAdvance" style="width: 20px; height: 20px;">
+                        <label for="expIsAdvance" style="margin: 0; cursor: pointer;">Is this an Advance
+                            Payment?</label>
+                    </div>
+                </div>
+                <!-- Receipt Upload -->
+                <div class="form-group full-width"
+                    style="margin-top: 10px; border-top: 1px dashed var(--glass-border); padding-top: 15px;">
+                    <label><i class="fa-solid fa-camera"></i> Upload Receipt (Optional)</label>
+                    <input type="file" id="expReceipt" class="fancy-input" accept="image/*">
+                    <div id="expCurrentReceipt" class="hidden"
+                        style="margin-top: 10px; font-size: 0.8rem; color: var(--accent);">
+                        <i class="fa-solid fa-link"></i> Current receipt exists. Upload new to replace.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveExpenseBtn" class="btn-primary-glow">Save Expense</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Worker Modal -->
+    <div id="workerModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2>Add New Worker</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="newWorkerName" class="fancy-input" placeholder="Worker Name">
+                </div>
+                <div class="form-group">
+                    <label>Employee ID</label>
+                    <input type="text" id="newWorkerId" class="fancy-input" placeholder="EMP-001">
+                </div>
+                <div class="form-group">
+                    <label>Date of Birth</label>
+                    <input type="date" id="newWorkerDob" class="fancy-input">
+                </div>
+                <div class="form-group">
+                    <label>Phone Number</label>
+                    <input type="tel" id="newWorkerPhone" class="fancy-input" placeholder="+966...">
+                </div>
+                <div class="form-group full-width">
+                    <label>Address</label>
+                    <input type="text" id="newWorkerAddress" class="fancy-input" placeholder="Address">
+                </div>
+                <!-- Status Dropdown -->
+                <div class="form-group full-width">
+                    <label>Status</label>
+                    <div id="newWorkerStatusContainer"></div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveWorkerBtn" class="btn-primary-glow">Save Worker Data</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
+    <div id="saleModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2 id="saleModalTitle">Record Chicken Sale</h2>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="saleDate">
+                </div>
+                <div class="form-group">
+                    <label>LOAD Name</label>
+                    <input type="text" id="saleLoad" placeholder="e.g., Truck A">
+                </div>
+                <div class="form-group">
+                    <label>Chicken Count</label>
+                    <input type="text" id="saleQty" placeholder="0" class="fancy-input"
+                        oninput="window.formatCommaInput(this);">
+                </div>
+                <div class="form-group">
+                    <label>Chicken Weight</label>
+                    <input type="text" id="saleWeight" placeholder="0.00" class="fancy-input"
+                        oninput="window.formatCommaInput(this); window.updateSaleTotal();">
+                </div>
+                <div class="form-group">
+                    <label>Chicken Price per kg</label>
+                    <input type="text" id="salePrice" placeholder="0.00" class="fancy-input"
+                        oninput="window.formatCommaInput(this); window.updateSaleTotal();">
+                </div>
+                <div class="form-group">
+                    <label>Total</label>
+                    <input type="text" id="saleTotal" readonly class="fancy-input" placeholder="0.00">
+                </div>
+                <!-- Receipt Upload -->
+                <div class="form-group full-width"
+                    style="margin-top: 10px; border-top: 1px dashed var(--glass-border); padding-top: 15px;">
+                    <label><i class="fa-solid fa-camera"></i> Upload Receipt (Optional)</label>
+                    <input type="file" id="saleReceipt" class="fancy-input" accept="image/*">
+                    <div id="saleCurrentReceipt" class="hidden"
+                        style="margin-top: 10px; font-size: 0.8rem; color: var(--accent);">
+                        <i class="fa-solid fa-link"></i> Current receipt exists. Upload new to replace.
+                    </div>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="saveSaleBtn" class="btn-primary-glow" style="background: #10b981;">Save Sale</button>
+            </div>
+        </div>
+    </div>
+
+
+
+    <div id="categoryModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2>Add New Category</h2>
+            <div class="form-group">
+                <label>Category Name</label>
+                <input type="text" id="newCategoryName" placeholder="e.g., Transport">
+            </div>
+            <div class="form-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                <input type="checkbox" id="newCategoryIsHima" style="width: auto;">
+                <label for="newCategoryIsHima" style="margin:0;">Is Hima Expense?</label>
+            </div>
+            <div class="modal-actions">
+                <button id="saveCategoryBtn" class="btn-primary-glow">Create Category</button>
+            </div>
+        </div>
+    </div>
+
+
+
+
+
+    <!-- Settle Salary Modal -->
+    <div id="settleModal" class="modal">
+        <div class="modal-content glass-panel">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2>Settle Salary Payment</h2>
+            <div class="form-grid">
+                <div class="form-group full-width">
+                    <label>Select Worker to Settle</label>
+                    <div id="settleWorkerSelectContainer"></div>
+                </div>
+                <div class="form-group">
+                    <label>Total Advances Taken</label>
+                    <input type="text" id="settleAdvances" class="fancy-input text-red" style="font-weight:bold;"
+                        oninput="window.formatCommaInput(this); window.updateSettleBalance();">
+                </div>
+                <div class="form-group">
+                    <label>Final Agreed Salary</label>
+                    <input type="text" id="settleTotalSalary" class="fancy-input" placeholder="e.g. 45,000"
+                        oninput="window.formatCommaInput(this); window.updateSettleBalance();">
+                </div>
+                <div class="form-group">
+                    <label>Reference No</label>
+                    <input type="text" id="settleRef" class="fancy-input" placeholder="e.g. SETTLE-01">
+                </div>
+            </div>
+            <div class="form-group full-width"
+                style="background: rgba(16, 185, 129, 0.1); padding: 1rem; border-radius: 8px;">
+                <label style="color:var(--text-green);">Balance to Pay Now</label>
+                <h1 id="settleBalance" style="margin:0; color:var(--text-green);">0.00</h1>
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-top:5px;">(Agreed Salary - Advances)
+                </p>
+            </div>
+            <!-- Receipt Upload -->
+            <div class="form-group full-width"
+                style="margin-top: 10px; border-top: 1px dashed var(--glass-border); padding-top: 15px;">
+                <label><i class="fa-solid fa-camera"></i> Upload Receipt/Proof (Optional)</label>
+                <input type="file" id="settleReceipt" class="fancy-input" accept="image/*">
+            </div>
+        </div>
+        <div class="modal-actions">
+            <button id="confirmSettleBtn" class="btn-primary-glow">Confirm & Pay Balance</button>
+        </div>
+    </div>
+    </div>
+
+    <!-- Add Payable Modal -->
+    <div id="payableModal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 400px;">
+            <span class="close-modal" onclick="closeModal()">&times;</span>
+            <h2>Add Hima Payable</h2>
+            <div class="form-group">
+                <label>Description</label>
+                <div class="input-wrapper">
+                    <input type="text" id="payableName" placeholder="e.g. Feed Transport"
+                        style="width:100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Amount</label>
+                <div class="input-wrapper">
+                    <input type="number" id="payableAmount" placeholder="0.00"
+                        style="width:100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--glass-border); border-radius: 8px; color: white;">
+                </div>
+            </div>
+            <!-- Receipt Upload -->
+            <div class="form-group">
+                <label><i class="fa-solid fa-camera"></i> Upload Receipt (Optional)</label>
+                <input type="file" id="payableReceipt" class="fancy-input" accept="image/*">
+            </div>
+            <div class="modal-actions">
+                <button onclick="createPayable()" class="btn-primary-glow" style="width:100%;">Add Payable</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='app.js') }}?v=68"></script>
+    <script>
+        // Inline script for tab switching to ensure it works immediately
+        window.switchSubView = function (viewName, e) {
+            document.getElementById('subview-expenses').classList.add('hidden');
+            document.getElementById('subview-sales').classList.add('hidden');
+            document.getElementById('subview-profit').classList.add('hidden');
+            document.getElementById('subview-balance').classList.add('hidden');
+            document.getElementById('subview-estimator').classList.add('hidden');
+
+            const allSubNavBtns = document.querySelectorAll('.sub-nav-btn');
+            allSubNavBtns.forEach(btn => btn.classList.remove('active'));
+
+            // If triggered by click, e should be event or e.target should exist
+            const target = e ? (e.target || e) : null;
+            if (target && target.classList) {
+                target.classList.add('active');
+            } else {
+                // Fallback: active logic based on viewName
+                const btnMap = { 'expenses': 0, 'sales': 1, 'profit': 2, 'balance': 3, 'estimator': 4 };
+                if (allSubNavBtns[btnMap[viewName]]) {
+                    allSubNavBtns[btnMap[viewName]].classList.add('active');
+                }
+            }
+
+            const viewEl = document.getElementById(`subview-${viewName}`);
+            if (viewEl) viewEl.classList.remove('hidden');
+
+            if (viewName === 'sales' && typeof window.loadSales === 'function') {
+                window.loadSales();
+            } else if (viewName === 'profit' && typeof window.loadProfit === 'function') {
+                window.loadProfit();
+            } else if (viewName === 'balance' && typeof window.loadBalance === 'function') {
+                window.loadBalance();
+            } else if (viewName === 'estimator' && typeof window.initProfitEstimator === 'function') {
+                window.initProfitEstimator();
+            }
+        }
+
+        window.closeModal = function (modal) {
+            if (modal) {
+                if (typeof modal === 'string') modal = document.getElementById(modal);
+                modal.classList.remove('show');
+            } else {
+                // Fallback: close all
+                document.querySelectorAll('.modal').forEach(m => m.classList.remove('show'));
+            }
+        }
+
+        // Inline definition for Payables Modal to prevent scope issues
+        window.openAddPayableModal = function (e) {
+            if (e) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+            const modal = document.getElementById('payableModal');
+            if (modal) {
+                document.getElementById('payableName').value = '';
+                document.getElementById('payableAmount').value = '';
+                modal.classList.add('show');
+            }
+        };
+    </script>
+
+
+
+    <!-- Add/Edit User Modal -->
+    <div id="userFormModal" class="modal" style="z-index: 10001;">
+        <div class="modal-content glass-panel" style="max-width: 450px;">
+            <span class="close-modal"
+                onclick="document.getElementById('userFormModal').classList.remove('show')">&times;</span>
+            <h2 id="userModalTitle">Add New User</h2>
+            <input type="hidden" id="editUserId">
+
+            <div class="form-group">
+                <label>Full Name</label>
+                <input type="text" id="userFullName" class="fancy-input" style="width: 100%;"
+                    placeholder="e.g. John Doe">
+            </div>
+
+            <div class="form-group">
+                <label>Email Address</label>
+                <input type="email" id="userEmail" class="fancy-input" style="width: 100%;"
+                    placeholder="name@company.com">
+            </div>
+
+            <div class="form-group" id="tempPasswordGroup">
+                <label>Temporary Password</label>
+                <input type="password" id="userTempPassword" class="fancy-input" style="width: 100%;"
+                    placeholder="Minimum 6 characters">
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 5px;">User will use this to log
+                    in initially.</p>
+            </div>
+
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button class="btn-primary-glow" onclick="window.submitUserForm()" id="userFormSubmitBtn">Create
+                    User</button>
+            </div>
+        </div>
+    </div>
+    <!-- Edit Profits Share Modal -->
+    <div id="himaPercentModal" class="modal">
+        <div class="modal-content glass-panel" style="max-width: 350px;">
+            <span class="close-modal" onclick="hideModals()">&times;</span>
+            <h2 style="margin-bottom: 0.5rem;"><i class="fa-solid fa-percent" style="color: #3b82f6;"></i> Split Config
+            </h2>
+            <div class="form-group">
+                <label>HIMA Share Percentage (%)</label>
+                <input type="number" id="editHimaPercent" class="fancy-input" style="width: 100%;" min="0" max="100">
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-top: 10px;">
+                    Farm Management Share will be adjusted to <strong id="autoFarmPercent"
+                        class="text-green">75</strong>% automatically.
+                </p>
+            </div>
+            <div class="modal-actions" style="margin-top: 1.5rem;">
+                <button onclick="saveHimaPercent()" class="btn-primary-glow" style="width:100%;">Update Share
+                    Ratio</button>
+            </div>
+        </div>
+    </div>
+    </div>
+
+    <!-- Receipt Viewer Modal -->
+    <div id="receiptViewerModal" class="modal" style="z-index: 11000;">
+        <div class="modal-content glass-panel"
+            style="max-width: 90%; width: 800px; padding: 10px; position: relative; background: rgba(15, 23, 42, 0.95);">
+            <span class="close-modal" onclick="closeModal('receiptViewerModal')"
+                style="right: 15px; top: 10px; font-size: 30px; color: white; background: rgba(0,0,0,0.5); width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center;">&times;</span>
+            <div id="receiptImageContainer"
+                style="width: 100%; min-height: 300px; display: flex; align-items: center; justify-content: center; overflow: auto; max-height: 80vh;">
+                <img id="receiptImage" src="" alt="Receipt"
+                    style="max-width: 100%; height: auto; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+            </div>
+            <div style="padding: 15px; text-align: center;">
+                <a id="receiptDownloadLink" href="" download class="btn-primary-glow"
+                    style="display: inline-flex; align-items: center; gap: 8px; text-decoration: none;">
+                    <i class="fa-solid fa-download"></i> Download Original
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

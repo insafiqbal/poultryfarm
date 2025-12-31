@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <style>
+        @page {
+            size: A4;
+            margin: 1.5cm;
+        }
+
+        body {
+            font-family: 'Helvetica', 'Arial', sans-serif;
+            color: #1e293b;
+            line-height: 1.5;
+            font-size: 10pt;
+            background-color: #ffffff;
+        }
+
+        /* Helpers */
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .font-bold {
+            font-weight: bold;
+        }
+
+        .accent-blue {
+            color: #2563eb;
+        }
+
+        .accent-green {
+            color: #059669;
+        }
+
+        .accent-red {
+            color: #dc2626;
+        }
+
+        .mt-10 {
+            margin-top: 10px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        /* Compact Header */
+        .header {
+            border-bottom: 2px solid #3b82f6;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .header table {
+            width: 100%;
+        }
+
+        .brand {
+            font-size: 20pt;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .report-title {
+            font-size: 10pt;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        /* Section Titles */
+        .section-header {
+            background-color: #f8fafc;
+            border-left: 4px solid #3b82f6;
+            padding: 8px 12px;
+            margin: 20px 0 12px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .section-title {
+            font-size: 10pt;
+            font-weight: 800;
+            color: #0f172a;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Info Grid */
+        .info-grid {
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .info-grid td {
+            width: 33%;
+            padding: 8px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+        }
+
+        .label {
+            font-size: 7.5pt;
+            color: #64748b;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 2px;
+        }
+
+        .value {
+            font-size: 11pt;
+            font-weight: 700;
+            color: #1e293b;
+        }
+
+        /* Tables with Borders */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            border: 1px solid #cbd5e1;
+        }
+
+        .data-table th {
+            background-color: #f1f5f9;
+            color: #334155;
+            text-align: left;
+            padding: 10px;
+            font-size: 8pt;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid #cbd5e1;
+            border-bottom: 2px solid #3b82f6;
+        }
+
+        .data-table td {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            font-size: 9pt;
+        }
+
+        .tr-even {
+            background-color: #f8fafc;
+        }
+
+        .total-row {
+            background-color: #f1f5f9;
+            font-weight: 800;
+        }
+
+        .total-row td {
+            border-top: 2px solid #3b82f6;
+        }
+
+        /* Hero Boxes */
+        .profit-hero {
+            background-color: #0f172a;
+            color: #ffffff;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            margin: 15px 0;
+        }
+
+        .profit-value {
+            font-size: 24pt;
+            font-weight: 800;
+            color: #4ade80;
+        }
+
+        /* Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 8pt;
+            font-weight: 800;
+            text-transform: uppercase;
+            border: 1px solid #cbd5e1;
+        }
+
+        .status-active {
+            background-color: #dcfce7;
+            color: #166534;
+            border-color: #bbf7d0;
+        }
+
+        .status-closed {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-color: #fecaca;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #e2e8f0;
+            text-align: center;
+            font-size: 8pt;
+            color: #94a3b8;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <table>
+            <tr>
+                <td>
+                    <div class="brand">SAUDI <span style="color: #3b82f6;">FARMS</span></div>
+                    <div class="report-title">Monthly Batch Settlement Audit</div>
+                </td>
+                <td class="text-right">
+                    <div class="font-bold" style="font-size: 9pt;">BATCH REF: {{ batch.name }}</div>
+                    <div style="font-size: 8pt; color: #64748b;">Generated: {{ now }}</div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- Section 1: Overview -->
+    <div class="section-header">
+        <div class="section-title">01. Batch Identity & Status</div>
+    </div>
+
+    <table class="info-grid">
+        <tr>
+            <td>
+                <div class="label">Project Name</div>
+                <div class="value">{{ batch.name }}</div>
+            </td>
+            <td>
+                <div class="label">Cycle Period</div>
+                <div class="value">{{ batch.start_date }} - {{ batch.end_date or 'Present' }}</div>
+            </td>
+            <td>
+                <div class="label">Current Status</div>
+                <div class="mt-10">
+                    <span class="status-badge {{ 'status-closed' if batch.status == 'Closed' else 'status-active' }}">
+                        {{ batch.status }}
+                    </span>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Section 2: Key Wealth Indicators -->
+    <div class="section-header">
+        <div class="section-title">02. Executive Financial Summary</div>
+    </div>
+
+    <table class="info-grid">
+        <tr>
+            <td>
+                <div class="label">Gross Sales</div>
+                <div class="value accent-blue">LKR {{ "{:,.2f}".format(data.total_sales) }}</div>
+            </td>
+            <td>
+                <div class="label">Total Batch Costs</div>
+                <div class="value accent-red">LKR {{ "{:,.2f}".format(data.hima_expenses + data.farm_expenses) }}</div>
+            </td>
+            <td>
+                <div class="label">Initial Capital</div>
+                <div class="value">LKR {{ "{:,.2f}".format(data.total_funds) }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div class="profit-hero">
+        <div class="label" style="text-transform: uppercase; font-size: 8pt; letter-spacing: 2px; color: #94a3b8;">Final
+            Net Batch Profit</div>
+        <div class="profit-value">LKR {{ "{:,.2f}".format(data.final_hima_profit + data.final_farm_profit) }}</div>
+    </div>
+
+    <!-- Section 3: Equity Split -->
+    <div class="section-header">
+        <div class="section-title">03. Stakeholder Distribution</div>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Entity Name</th>
+                <th>Equity %</th>
+                <th>Profit Share</th>
+                <th>Adjustments</th>
+                <th class="text-right">Final Payout</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="font-bold">HIMA EQUITY</td>
+                <td>{{ "{:,.0f}".format(data.hima_p) }}%</td>
+                <td>LKR {{ "{:,.2f}".format(data.hima_share) }}</td>
+                <td class="accent-blue">+{{ "{:,.2f}".format(data.payables_total) }}</td>
+                <td class="text-right font-bold accent-blue">LKR {{ "{:,.2f}".format(data.final_hima_profit) }}</td>
+            </tr>
+            <tr class="tr-even">
+                <td class="font-bold">FARM MANAGEMENT</td>
+                <td>{{ "{:,.0f}".format(data.farm_p) }}%</td>
+                <td>LKR {{ "{:,.2f}".format(data.farm_share_gross) }}</td>
+                <td class="accent-red">-{{ "{:,.2f}".format(data.farm_expenses + data.payables_total) }}</td>
+                <td class="text-right font-bold accent-green">LKR {{ "{:,.2f}".format(data.final_farm_profit) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="page-break-before: always;"></div>
+
+    <!-- Section 4: Partner Distribution -->
+    <div class="section-header">
+        <div class="section-title">04. Managing Partner Payouts</div>
+    </div>
+
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Partner Name</th>
+                <th>Base Share (1/3)</th>
+                <th>Capital Adjustment</th>
+                <th class="text-right">Total Disbursement</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Kaleel</td>
+                <td>LKR {{ "{:,.2f}".format(data.partner_share) }}</td>
+                <td class="{{ 'accent-green' if data.adj_k >= 0 else 'accent-red' }} font-bold">{{
+                    "{:+.2f}".format(data.adj_k) }}</td>
+                <td class="text-right font-bold">LKR {{ "{:,.2f}".format(data.partner_share + data.adj_k) }}</td>
+            </tr>
+            <tr class="tr-even">
+                <td>Iqbal</td>
+                <td>LKR {{ "{:,.2f}".format(data.partner_share) }}</td>
+                <td class="{{ 'accent-green' if data.adj_i >= 0 else 'accent-red' }} font-bold">{{
+                    "{:+.2f}".format(data.adj_i) }}</td>
+                <td class="text-right font-bold">LKR {{ "{:,.2f}".format(data.partner_share + data.adj_i) }}</td>
+            </tr>
+            <tr>
+                <td>Farhan</td>
+                <td>LKR {{ "{:,.2f}".format(data.partner_share) }}</td>
+                <td class="{{ 'accent-green' if data.adj_f >= 0 else 'accent-red' }} font-bold">{{
+                    "{:+.2f}".format(data.adj_f) }}</td>
+                <td class="text-right font-bold">LKR {{ "{:,.2f}".format(data.partner_share + data.adj_f) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Section 5: Bank Sensitivity -->
+    <div class="section-header">
+        <div class="section-title">05. Bank & Cash Sensitivity</div>
+    </div>
+
+    <table class="info-grid">
+        <tr>
+            <td>
+                <div class="label">Total Capital In</div>
+                <div class="value">LKR {{ "{:,.2f}".format(data.total_funds) }}</div>
+            </td>
+            <td>
+                <div class="label">Farm Utilization</div>
+                <div class="value accent-red">LKR {{ "{:,.2f}".format(data.farm_expenses + data.total_advances) }}</div>
+            </td>
+            <td>
+                <div class="label">Est. Bank Balance</div>
+                <div class="value accent-blue">LKR {{ "{:,.2f}".format(data.total_funds - (data.farm_expenses +
+                    data.total_advances)) }}</div>
+            </td>
+        </tr>
+    </table>
+
+    <div style="page-break-before: always;"></div>
+
+    <!-- Section 6: Audit History -->
+    <div class="section-header">
+        <div class="section-title">06. Detailed Audit History</div>
+    </div>
+
+    <!-- Sales -->
+    <div style="font-size: 8pt; font-weight: 800; color: #2563eb; margin-bottom: 5px;">LEDGER A: SALES REVENUE</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Description / Buyer</th>
+                <th>Qty</th>
+                <th>Weight (KG)</th>
+                <th>Price</th>
+                <th class="text-right">Total</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for sale in data.sales %}
+            <tr class="{{ loop.cycle('', 'tr-even') }}">
+                <td>{{ sale.date }}</td>
+                <td class="font-bold">{{ sale.load_name }}</td>
+                <td>{{ sale.qty_birds }}</td>
+                <td>{{ "{:,.2f}".format(sale.weight_kg) }}</td>
+                <td>{{ "{:,.2f}".format(sale.price_per_kg) }}</td>
+                <td class="text-right font-bold">LKR {{ "{:,.2f}".format(sale.total_amount) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="5">CONSOLIDATED REVENUE</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(data.total_sales) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Expenses -->
+    <div style="font-size: 8pt; font-weight: 800; color: #dc2626; margin-bottom: 5px; margin-top: 15px;">LEDGER B:
+        OPERATIONAL EXPENDITURES</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Category</th>
+                <th>Responsibility</th>
+                <th class="text-right">Amount</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for cat, amt in data.hima_breakdown.items() %}
+            <tr>
+                <td>{{ cat }}</td>
+                <td>HIMA EQUITY</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(amt) }}</td>
+            </tr>
+            {% endfor %}
+            {% for cat, amt in data.farm_breakdown.items() %}
+            <tr class="tr-even">
+                <td>{{ cat }}</td>
+                <td>FARM MANAGEMENT</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(amt) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="2">TOTAL COSTS Audit</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(data.hima_expenses + data.farm_expenses) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div style="page-break-before: always;"></div>
+
+    <!-- Labour -->
+    <div style="font-size: 8pt; font-weight: 800; color: #d97706; margin-bottom: 5px;">LEDGER C: HUMAN CAPITAL &
+        ADVANCES</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Staff/Resource</th>
+                <th>Memo</th>
+                <th class="text-right">Impact</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for exp in data.all_expenses if exp.is_advance or exp.category == 'Labour' %}
+            <tr class="{{ loop.cycle('', 'tr-even') }}">
+                <td>{{ exp.date }}</td>
+                <td class="font-bold">{{ exp.worker.name if exp.worker else 'General Ops' }}</td>
+                <td>{{ exp.subject }} {{ '[ADVANCE]' if exp.is_advance else '' }}</td>
+                <td class="text-right accent-red">LKR {{ "{:,.2f}".format(exp.total) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="3">PAYROLL IMPACT SUM</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(data.total_advances + data.farm_breakdown.get('Labour',
+                    0)) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Deposits -->
+    <div style="font-size: 8pt; font-weight: 800; color: #3b82f6; margin-bottom: 5px; margin-top: 15px;">LEDGER D:
+        CAPITAL CONTRIBUTIONS</div>
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Ref #</th>
+                <th>Date</th>
+                <th>Source</th>
+                <th>Details</th>
+                <th class="text-right">Credit</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for dep in data.deposits %}
+            <tr class="{{ loop.cycle('', 'tr-even') }}">
+                <td style="font-size: 8pt; color: #64748b;">{{ dep.ref_no or '-' }}</td>
+                <td>{{ dep.date }}</td>
+                <td class="font-bold">{{ dep.deposited_by or 'SYSTEM' }}</td>
+                <td>{{ dep.description or 'Direct Capital' }}</td>
+                <td class="text-right accent-blue font-bold">+LKR {{ "{:,.2f}".format(dep.amount) }}</td>
+            </tr>
+            {% endfor %}
+            <tr class="total-row">
+                <td colspan="4">INVESTED TOTAL</td>
+                <td class="text-right">LKR {{ "{:,.2f}".format(data.total_funds) }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="footer">
+        <strong>SAUDI FARMS MANAGEMENT SYSTEM</strong><br />
+        Professional Batch Audit &bull; {{ now }} &bull; Confirmed Official Output
+    </div>
+</body>
+
+</html>

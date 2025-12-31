@@ -1,0 +1,19 @@
+<!-- Add Payable Modal -->
+<div id="payableModal" class="modal">
+    <div class="modal-content glass-panel" style="max-width: 400px;">
+        <span class="close-modal">&times;</span>
+        <h2>Add Hima Payable</h2>
+        <div class="form-group">
+            <label>Description</label>
+            <input type="text" id="payableName" class="fancy-input" style="width:100%; text-align:left;"
+                placeholder="e.g. Feed Transport">
+        </div>
+        <div class="form-group">
+            <label>Amount</label>
+            <input type="number" id="payableAmount" class="fancy-input" style="width:100%;" placeholder="0.00">
+        </div>
+        <div class="modal-actions">
+            <button onclick="createPayable()" class="btn-primary-glow">Add Payable</button>
+        </div>
+    </div>
+</div>
