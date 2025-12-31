@@ -2,9 +2,10 @@
 const API_BASE = '/api';
 
 // Global Helper for Robust Numeric Parsing (moved to top for accessibility)
+// Global Helper for Robust Numeric Parsing (moved to top for accessibility)
 window.cleanNum = function (val) {
     if (!val) return 0;
-    let str = String(val).replace(/[^0-9.]/g, '');
+    let str = String(val).replace(/[^0-9.-]/g, '');
     return parseFloat(str) || 0;
 };
 
@@ -2325,7 +2326,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- Helper for Robust Numeric Parsing ---
     function cleanNum(val) {
         if (!val) return 0;
-        let str = String(val).replace(/[^0-9.]/g, '');
+        let str = String(val).replace(/[^0-9.-]/g, '');
         return parseFloat(str) || 0;
     }
 
@@ -2338,10 +2339,11 @@ document.addEventListener('DOMContentLoaded', () => {
         let commasBefore = (originalVal.slice(0, cursor).match(/,/g) || []).length;
 
         // 2. Format
-        let raw = originalVal.replace(/[^0-9.]/g, '');
-        if (raw === '') {
-            el.value = '';
-            // window.calculateEstimation(); // Decoupled
+        let raw = originalVal.replace(/[^0-9.-]/g, '');
+
+        // Allow typing just "-" or empty
+        if (raw === '' || raw === '-') {
+            el.value = raw;
             return;
         }
 
