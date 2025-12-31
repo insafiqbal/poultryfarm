@@ -340,7 +340,6 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('expDate').value = exp.date;
         document.getElementById('expRef').value = exp.ref_no || '';
         document.getElementById('expSubject').value = exp.subject;
-        document.getElementById('expWorker').value = exp.worker_id || '';
         document.getElementById('expQty').value = exp.qty || '';
         document.getElementById('expPrice').value = exp.unit_price || '';
         document.getElementById('expTotal').value = exp.total;
@@ -1496,7 +1495,6 @@ document.addEventListener('DOMContentLoaded', () => {
     async function createExpense() {
         try {
             console.log('Starting createExpense...');
-            const workerSelect = document.getElementById('expWorker');
             const dateInput = document.getElementById('expDate');
             const workerSec = document.getElementById('workerSection');
 
