@@ -1252,6 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <thead>
                             <tr>
                                 <th>Date</th>
+                                <th>Ref</th>
                                 <th>Worker</th>
                                 <th>Subject</th>
                                 <th>Amount</th>
@@ -1262,7 +1263,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <tbody></tbody>
                         <tfoot>
                             <tr class="total-row">
-                                <td colspan="3" style="text-align:right;">Total Advances</td>
+                                <td colspan="4" style="text-align:right;">Total Advances</td>
                                 <td id="totalAdvancesDisplay" style="font-weight:bold; color:var(--text-red);">0.00</td>
                                 <td></td>
                             </tr>
@@ -1341,7 +1342,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     total += e.total;
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                < td > ${e.date}</td >
+                        <td>${e.date}</td>
+                        <td style="color:var(--text-secondary);">${e.ref_no || ''}</td>
                         <td>
                             ${e.worker_name || '-'} 
                             ${e.is_advance ? '<span class="badge badge-hima" style="font-size:0.7rem; padding:2px 6px;">ADV</span>' : ''}
