@@ -3,6 +3,7 @@ const API_BASE = '/api';
 
 // Global Helper for Robust Numeric Parsing (moved to top for accessibility)
 // Global Helper for Robust Numeric Parsing (moved to top for accessibility)
+window.currentDeposits = []; // Global Store for Deposits
 window.cleanNum = function (val) {
     if (!val) return 0;
     let str = String(val).replace(/[^0-9.-]/g, '');
@@ -38,7 +39,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let saveTimeout = null; // Estimator auto-save timeout
     const deleteBatchCooldowns = {}; // Store expiry timestamps per batchId
     let editingDepositId = null;
-    let currentDeposits = [];
 
     // --- DOM Elements ---
     const navBatches = document.getElementById('navBatches');
@@ -156,24 +156,39 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     window.editDeposit = function (id) {
-        const deposit = currentDeposits.find(d => d.id === id);
-        if (!deposit) return;
+        console.log('Edit clicked for ID:', id);
+        // Find using loose equality just in case of type mismatch
+        const deposit = (window.currentDeposits || []).find(d => d.id == id);
+
+        if (!deposit) {
+            alert('Error: Deposit record not found (ID: ' + id + '). Refreshing data...');
+            console.error('Current Deposits:', window.currentDeposits);
+            if (typeof loadDepositsTable === 'function') loadDepositsTable();
+            return;
+        }
 
         editingDepositId = id;
-        document.getElementById('depositModalSubmitBtn').innerHTML = '<i class="fa-solid fa-save"></i> Update Deposit';
+        const btn = document.getElementById('depositModalSubmitBtn');
+        if (btn) btn.innerHTML = '<i class="fa-solid fa-save"></i> Update Deposit';
+        else alert('Error: Submit button not found');
 
-        const safeVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        const safeVal = (elemId, v) => {
+            const el = document.getElementById(elemId);
+            if (el) el.value = v;
+            else console.warn('Missing element:', elemId);
+        };
         safeVal('modalDepositRef', deposit.ref_no || '');
         safeVal('modalDepositBy', deposit.deposited_by || 'Kaleel');
         safeVal('modalDepositDate', deposit.date);
         safeVal('modalDepositAmount', deposit.amount);
         safeVal('modalDepositDesc', deposit.description || '');
 
+        // alert('Edit mode activated for ID: ' + id);
+
         // Scroll to form
-        const formSection = document.getElementById('manageFundsModal').querySelector('.fund-section:nth-child(4)'); // Rough guess, better to rely on user scrolling or minimal scroll
-        // Ideally just show modal (it is already open usually if clicking edit from table inside modal?)
-        // The table IS inside the modal. So we just need to scroll up to the form.
-        document.getElementById('manageFundsModal').querySelector('.modal-content').scrollTop = 0;
+        const modal = document.getElementById('manageFundsModal');
+        const content = modal ? modal.querySelector('.modal-content') : null;
+        if (content) content.scrollTop = 0;
     };
 
     // Views
@@ -2306,8 +2321,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch(`${API_BASE}/batches/${currentBatch.id}/deposits`);
-            currentDeposits = await res.json(); // Global Store
-            const deposits = currentDeposits;
+            window.currentDeposits = await res.json(); // Global Store
+            const deposits = window.currentDeposits;
 
             body.innerHTML = '';
 
@@ -2334,12 +2349,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${d.receipt_url ? `<button class="btn-icon" onclick="window.viewReceipt('${d.receipt_url}')" title="View Receipt"><i class="fa-solid fa-receipt" style="color:var(--accent);"></i></button>` : '-'}
                     </td>
                     <td>
-                        <button class="btn-icon" onclick="window.editDeposit(${d.id})" title="Edit" style="color:var(--text-secondary); margin-right:5px;">
-                            <i class="fa-solid fa-pen-to-square"></i>
-                        </button>
-                        <button class="btn-icon text-red" onclick="window.deleteDeposit(${d.id})" title="Delete">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+                        <div style="display:flex; justify-content:center; gap:8px;">
+                            <button class="btn-icon text-red" onclick="window.deleteDeposit(${d.id})" title="Delete">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
                 body.appendChild(tr);
