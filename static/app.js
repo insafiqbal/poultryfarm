@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentWorkers = [];
     let saveTimeout = null; // Estimator auto-save timeout
     const deleteBatchCooldowns = {}; // Store expiry timestamps per batchId
+    let editingDepositId = null;
+    let currentDeposits = [];
 
     // --- DOM Elements ---
     const navBatches = document.getElementById('navBatches');
@@ -138,6 +140,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const m = document.getElementById('manageFundsModal');
         if (typeof loadOpeningBalances === 'function') await loadOpeningBalances();
 
+        // Reset Edit State
+        editingDepositId = null;
+        document.getElementById('depositModalSubmitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Add Deposit';
+
         const safeVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
         safeVal('modalDepositRef', '');
         safeVal('modalDepositBy', 'Kaleel');
@@ -147,6 +153,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
         showModal(m);
         if (typeof loadDepositsTable === 'function') loadDepositsTable();
+    };
+
+    window.editDeposit = function (id) {
+        const deposit = currentDeposits.find(d => d.id === id);
+        if (!deposit) return;
+
+        editingDepositId = id;
+        document.getElementById('depositModalSubmitBtn').innerHTML = '<i class="fa-solid fa-save"></i> Update Deposit';
+
+        const safeVal = (id, v) => { const el = document.getElementById(id); if (el) el.value = v; };
+        safeVal('modalDepositRef', deposit.ref_no || '');
+        safeVal('modalDepositBy', deposit.deposited_by || 'Kaleel');
+        safeVal('modalDepositDate', deposit.date);
+        safeVal('modalDepositAmount', deposit.amount);
+        safeVal('modalDepositDesc', deposit.description || '');
+
+        // Scroll to form
+        const formSection = document.getElementById('manageFundsModal').querySelector('.fund-section:nth-child(4)'); // Rough guess, better to rely on user scrolling or minimal scroll
+        // Ideally just show modal (it is already open usually if clicking edit from table inside modal?)
+        // The table IS inside the modal. So we just need to scroll up to the form.
+        document.getElementById('manageFundsModal').querySelector('.modal-content').scrollTop = 0;
     };
 
     // Views
@@ -2279,7 +2306,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             const res = await fetch(`${API_BASE}/batches/${currentBatch.id}/deposits`);
-            const deposits = await res.json();
+            currentDeposits = await res.json(); // Global Store
+            const deposits = currentDeposits;
 
             body.innerHTML = '';
 
@@ -2306,6 +2334,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         ${d.receipt_url ? `<button class="btn-icon" onclick="window.viewReceipt('${d.receipt_url}')" title="View Receipt"><i class="fa-solid fa-receipt" style="color:var(--accent);"></i></button>` : '-'}
                     </td>
                     <td>
+                        <button class="btn-icon" onclick="window.editDeposit(${d.id})" title="Edit" style="color:var(--text-secondary); margin-right:5px;">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
                         <button class="btn-icon text-red" onclick="window.deleteDeposit(${d.id})" title="Delete">
                             <i class="fa-solid fa-trash"></i>
                         </button>
@@ -2758,12 +2789,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(`${API_BASE}/deposits`, {
-                method: 'POST',
+            const method = editingDepositId ? 'PUT' : 'POST';
+            const url = editingDepositId ? `${API_BASE}/deposits/${editingDepositId}` : `${API_BASE}/deposits`;
+
+            const res = await fetch(url, {
+                method: method,
                 body: formData
             });
             if (res.ok) {
-                alert('Deposit added');
+                alert(editingDepositId ? 'Deposit updated' : 'Deposit added');
+
+                // Reset Edit Mode
+                editingDepositId = null;
+                document.getElementById('depositModalSubmitBtn').innerHTML = '<i class="fa-solid fa-plus"></i> Add Deposit';
+
                 // Clear fields
                 document.getElementById('modalDepositAmount').value = '';
                 document.getElementById('modalDepositDesc').value = '';

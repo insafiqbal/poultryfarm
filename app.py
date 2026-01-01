@@ -973,6 +973,43 @@ def add_deposit():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/deposits/<int:deposit_id>', methods=['PUT'])
+@login_required
+def update_deposit(deposit_id):
+    deposit = Deposit.query.get_or_404(deposit_id)
+    
+    if request.is_json:
+        data = request.json
+    else:
+        # Handle form data including file upload
+        data = request.form
+    
+    try:
+        if 'date' in data:
+            deposit.date = datetime.strptime(data['date'], '%Y-%m-%d').date()
+        
+        if 'amount' in data:
+            deposit.amount = float(data['amount'])
+            
+        if 'description' in data:
+            deposit.description = data['description']
+            
+        if 'deposited_by' in data:
+            deposit.deposited_by = data['deposited_by']
+            
+        if 'ref_no' in data:
+            deposit.ref_no = data['ref_no']
+            
+        if 'receipt' in request.files:
+            receipt_url = save_receipt(request.files['receipt'])
+            if receipt_url:
+                deposit.receipt_url = receipt_url
+                
+        db.session.commit()
+        return jsonify(deposit.to_dict()), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 400
+
 @app.route('/api/deposits/<int:deposit_id>', methods=['DELETE'])
 @login_required
 def delete_deposit(deposit_id):
