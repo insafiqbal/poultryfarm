@@ -31,7 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentBatch = null;
     let currentCategory = '';
     let currentExpenses = []; // Store for access
-    let currentSales = [];
+    window.currentSales = [];
+    // let currentSales = []; // Removed local
     let editingExpenseId = null;
     let editingSaleId = null;
     let editingWorkerId = null;
@@ -1649,8 +1650,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentBatch) return;
         try {
             const res = await fetch(`${API_BASE}/batches/${currentBatch.id}/sales`);
-            const sales = await res.json();
-            renderSalesTable(sales);
+            window.currentSales = await res.json();
+            renderSalesTable(window.currentSales);
         } catch (err) { console.error(err); }
     }
 
@@ -1672,8 +1673,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     ${sale.receipt_url ? `<button class="btn-icon" onclick="window.viewReceipt('${sale.receipt_url}')" title="View Receipt"><i class="fa-solid fa-receipt" style="color:var(--accent);"></i></button>` : '-'}
                 </td>
                 <td>
-                    <div class="action-group" style="justify-content: center;">
-                        <button class="action-btn" onclick="deleteSale(${sale.id})"><i class="fa-solid fa-trash"></i></button>
+                    <div class="action-group" style="justify-content: center; gap: 8px;">
+                        <button class="action-btn" onclick="window.editSale(${sale.id})" style="color:var(--text-secondary);" title="Edit Sale">
+                            <i class="fa-solid fa-pen-to-square"></i>
+                        </button>
+                        <button class="action-btn" onclick="deleteSale(${sale.id})" title="Delete Sale"><i class="fa-solid fa-trash"></i></button>
                     </div>
                 </td>
             `;
@@ -1681,6 +1685,41 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         document.getElementById('grandTotalSales').textContent = total.toFixed(2);
     }
+
+    window.editSale = function (id) {
+        const sale = (window.currentSales || []).find(s => s.id == id);
+        if (!sale) return alert('Sale not found');
+
+        editingSaleId = id;
+        document.getElementById('saleModalTitle').textContent = 'Edit Sale';
+        document.getElementById('saveSaleBtn').textContent = 'Update Sale';
+
+        document.getElementById('saleDate').value = sale.date;
+        document.getElementById('saleLoad').value = sale.load_name || '';
+        document.getElementById('saleQty').value = sale.qty_birds;
+        document.getElementById('saleWeight').value = sale.weight_kg;
+        document.getElementById('salePrice').value = sale.price_per_kg;
+        document.getElementById('saleTotal').value = sale.total_amount;
+
+        const currentReceipt = document.getElementById('saleCurrentReceipt');
+        if (currentReceipt) {
+            if (sale.receipt_url) {
+                currentReceipt.classList.remove('hidden');
+                currentReceipt.innerHTML = `<i class="fa-solid fa-receipt"></i> <a href="javascript:void(0)" onclick="window.viewReceipt('${sale.receipt_url}')" style="color:var(--accent); text-decoration:underline;">View current receipt</a>`;
+            } else {
+                currentReceipt.classList.add('hidden');
+            }
+        }
+
+        const modal = document.getElementById('saleModal');
+        if (modal) {
+            modal.classList.add('show');
+            // Remove 'hidden' class if it relies on that mechanism, 
+            // though app uses 'show' class usually for modals if they are always in DOM but hidden via CSS
+            // Checking showModal usage in file, it seems showModal(el) sets style.display='block' or adds class
+            showModal(modal);
+        }
+    };
 
     async function createSale() {
         if (!currentBatch) return;
@@ -1702,8 +1741,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const res = await fetch(`${API_BASE}/sales`, {
-                method: 'POST',
+            const method = editingSaleId ? 'PUT' : 'POST';
+            const url = editingSaleId ? `${API_BASE}/sales/${editingSaleId}` : `${API_BASE}/sales`;
+
+            const res = await fetch(url, {
+                method: method,
                 body: formData
             });
             if (res.ok) {
@@ -1724,6 +1766,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function resetSaleModal() {
+        editingSaleId = null;
+        document.getElementById('saleModalTitle').textContent = 'Record Chicken Sale';
+        document.getElementById('saveSaleBtn').textContent = 'Save Sale';
+
         document.getElementById('saleDate').value = today;
         document.getElementById('saleLoad').value = '';
         document.getElementById('saleQty').value = '';
