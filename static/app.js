@@ -1813,7 +1813,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <span>${p.name}</span>
                                 ${p.receipt_url ? `<button class="btn-icon small-btn" onclick="window.viewReceipt('${p.receipt_url}')" title="View Receipt"><i class="fa-solid fa-receipt" style="color:var(--accent);"></i></button>` : ''}
                             </div>
-                            <span>${fmt(p.amount)}</span>
+                            <div style="display:flex; align-items:center; gap:8px;">
+                                <span>${fmt(p.amount)}</span>
+                                <button class="btn-icon small-btn text-red delete-payable-btn" data-id="${p.id}"><i class="fa-solid fa-trash"></i></button>
+                            </div>
                         </div>
                     `).join('');
             };
@@ -1890,7 +1893,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                      <div class="accordion-content">
                         <div class="accordion-inner">
-                            ${renderBreakdown(data.payables_breakdown)}
+                            ${renderPayables(data.payables_list)}
                             <div style="margin-top:10px; padding-top:10px; border-top:1px dashed rgba(255,255,255,0.1); font-size:0.85rem; color:var(--text-secondary); text-align:center;">
                                 <span>Note: Added to Hima / Deducted from Farm</span>
                             </div>
@@ -2098,6 +2101,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     window.createPayable = createPayable;
+
+    window.deletePayable = async function (id) {
+        console.log('Attempting to delete payable ID:', id);
+        if (!id) { alert('Error: Invalid ID'); return; }
+        if (!confirm('Remove this payable item?')) return;
+        try {
+            const res = await fetch(`${API_BASE}/payables/${id}`, { method: 'DELETE' });
+            if (res.ok) {
+                console.log('Delete success');
+                loadProfit();
+            } else {
+                console.error('Delete failed', res.status);
+                alert('Failed to delete payable');
+            }
+        } catch (e) { console.error('Delete Exception:', e); }
+    };
 
     // --- Salary Manager Logic ---
     async function openSettleInterface() {
@@ -3111,3 +3130,20 @@ window.submitChangePassword = async function () {
     } catch (e) { console.error(e); }
 };
 
+// --- Global Event Delegation for Dynamic Elements ---
+document.addEventListener('click', function (e) {
+    // Delete Payable Delegation
+    const delBtn = e.target.closest('.delete-payable-btn');
+    if (delBtn) {
+        e.stopPropagation();
+        const id = delBtn.dataset.id;
+        console.log('Delegated delete click for ID:', id);
+        if (window.deletePayable) {
+            window.deletePayable(id);
+        } else {
+            console.error('window.deletePayable function missing!');
+        }
+    }
+});
+
+// End of file

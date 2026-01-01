@@ -933,6 +933,10 @@ def add_payable():
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 
+@app.route('/api/payables/<int:payable_id>', methods=['DELETE'])
+@login_required
+def delete_payable(payable_id):
+    payable = HimaPayable.query.get_or_404(payable_id)
     db.session.delete(payable)
     db.session.commit()
     return jsonify({'message': 'Payable deleted'}), 200
