@@ -98,6 +98,28 @@ def send_email_api(to_email, subject, html_content, text_content=None, attachmen
 
 db.init_app(app)
 
+def auto_migrate_db():
+    """Checks for schema updates and applies them automatically."""
+    with app.app_context():
+        try:
+            # Check for is_bank_visible in expense
+            with db.engine.connect() as conn:
+                try:
+                    conn.execute(text("SELECT is_bank_visible FROM expense LIMIT 1"))
+                except Exception:
+                    print("Auto-Migration: Adding 'is_bank_visible' to expense table...")
+                    conn.execute(text("ALTER TABLE expense ADD COLUMN is_bank_visible BOOLEAN DEFAULT 1"))
+                    conn.execute(text("UPDATE expense SET is_bank_visible = 1"))
+                    conn.commit()
+                    print("Auto-Migration: Column added successfully.")
+        except Exception as e:
+            print(f"Auto-Migration Warning: {e}")
+
+# Run schema check on startup
+with app.app_context():
+    db.create_all() # Ensure tables exist
+    auto_migrate_db() # Patch if needed
+
 login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
