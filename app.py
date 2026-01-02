@@ -99,21 +99,28 @@ def send_email_api(to_email, subject, html_content, text_content=None, attachmen
 db.init_app(app)
 
 def auto_migrate_db():
-    """Checks for schema updates and applies them automatically."""
     with app.app_context():
         try:
-            # Check for is_bank_visible in expense
-            with db.engine.connect() as conn:
-                try:
-                    conn.execute(text("SELECT is_bank_visible FROM expense LIMIT 1"))
-                except Exception:
-                    print("Auto-Migration: Adding 'is_bank_visible' to expense table...")
-                    conn.execute(text("ALTER TABLE expense ADD COLUMN is_bank_visible BOOLEAN DEFAULT 1"))
-                    conn.execute(text("UPDATE expense SET is_bank_visible = 1"))
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            columns = [c['name'] for c in inspector.get_columns('expense')]
+            
+            if 'is_bank_visible' not in columns:
+                print("Auto-Migration: Adding 'is_bank_visible' to expense table...")
+                with db.engine.connect() as conn:
+                    # Using a safe default that works in both (1 works in PG for boolean often, but TRUE is standard)
+                    # We'll use SQLAlchemy text execution.
+                    # Note: SQLite doesn't support ALTER TABLE ADD COLUMN with DEFAULT for boolean nicely sometimes without constraints,
+                    # but simple ADD COLUMN works.
+                    conn.execute(text("ALTER TABLE expense ADD COLUMN is_bank_visible BOOLEAN DEFAULT TRUE"))
+                    conn.execute(text("UPDATE expense SET is_bank_visible = TRUE"))
                     conn.commit()
-                    print("Auto-Migration: Column added successfully.")
+                print("Auto-Migration: Column added successfully.")
+            else:
+                print("Auto-Migration: Column 'is_bank_visible' already exists.")
+                
         except Exception as e:
-            print(f"Auto-Migration Warning: {e}")
+            print(f"Auto-Migration Error: {e}")
 
 # Run schema check on startup
 with app.app_context():
