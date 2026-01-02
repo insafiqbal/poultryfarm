@@ -2334,44 +2334,136 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!currentBatch) return;
 
         try {
-            // Refresh batch info to get opening balance provider
             const bRes = await fetch(`${API_BASE}/batches/${currentBatch.id}`);
-            if (bRes.ok) {
-                currentBatch = await bRes.json();
-            }
+            if (bRes.ok) currentBatch = await bRes.json();
 
             const res = await fetch(`${API_BASE}/batches/${currentBatch.id}/summary`);
             const summary = await res.json();
 
             const totalFunds = summary.total_funds || 0;
-            const farmExp = summary.farm_expenses || 0;
-            const advances = summary.total_advances || 0;
-            const combinedFarmExpenses = farmExp + advances;
-            const remaining = totalFunds - combinedFarmExpenses;
+            const clearedFarmExp = summary.cleared_farm_expenses || 0;
+            const remaining = totalFunds - clearedFarmExp;
 
             const tfEl = document.getElementById('displayTotalFunds');
             if (tfEl) tfEl.textContent = totalFunds.toLocaleString('en-US', { minimumFractionDigits: 2 });
 
-            const farmEl = document.getElementById('displayFarmExpenses');
-            if (farmEl) farmEl.textContent = combinedFarmExpenses.toLocaleString('en-US', { minimumFractionDigits: 2 });
-
             const remainingEl = document.getElementById('displayRemainingBalance');
             if (remainingEl) {
                 remainingEl.textContent = remaining.toLocaleString('en-US', { minimumFractionDigits: 2 });
-                if (remaining < 0) {
-                    remainingEl.style.color = '#ef4444';
-                } else {
-                    remainingEl.style.color = '#10b981';
-                }
+                remainingEl.style.color = remaining < 0 ? '#ef4444' : '#10b981';
             }
 
-            // Also reload the detailed table
-            if (typeof loadDepositsTable === 'function') {
-                loadDepositsTable();
+            // --- Render Farm Expenses Accordion with Checklist ---
+            // Target the Expense Card container - we need to replace its internal HTML fully
+            // Currently it has class 'balance-card expense-card'
+            // We'll search for it by checking the parent '.balance-dashboard'
+
+            // Actually, best to just find the specific card ID or structure if possible. 
+            // The HTML has: <h2 id="displayFarmExpenses">0.00</h2> inside .balance-card.expense-card
+            const farmCard = document.querySelector('.balance-card.expense-card');
+            if (farmCard) {
+                // Ensure it has the accordion structure instead of simple card
+                // We will rebuild it completely to fit the new UI requirement
+                farmCard.className = 'balance-card expense-card interactive-accordion'; // Add utility class if needed
+                farmCard.innerHTML = `
+                    <div class="balance-icon"><i class="fa-solid fa-money-bill-transfer"></i></div>
+                    <div class="balance-info" style="width:100%;">
+                        <div class="accordion-header" onclick="this.parentElement.parentElement.classList.toggle('active')" style="display:flex; justify-content:space-between; align-items:center; cursor:pointer;">
+                            <div>
+                                <span>Farm Expenses</span>
+                                <h2 id="displayFarmExpenses">${clearedFarmExp.toLocaleString('en-US', { minimumFractionDigits: 2 })}</h2>
+                            </div>
+                            <i class="fa-solid fa-chevron-down"></i>
+                        </div>
+                        <div class="accordion-content">
+                            <div class="checklist-container" style="max-height: 250px; overflow-y: auto; margin-top: 10px; padding-right: 5px;">
+                                ${renderExpenseChecklist(summary.raw_farm_expenses_list)}
+                            </div>
+                        </div>
+                    </div>
+                `;
             }
 
-        } catch (e) { console.error(e); }
+            if (typeof loadDepositsTable === 'function') loadDepositsTable();
+
+        } catch (e) { console.error('loadBalance Error:', e); }
     }
+
+    function renderExpenseChecklist(list) {
+        if (!list || list.length === 0) return '<p style="color:var(--text-secondary); font-size:0.8rem;">No expenses found.</p>';
+
+        // 1. Group by Category
+        const groups = {};
+        list.forEach(e => {
+            const cat = e.category || 'Uncategorized';
+            if (!groups[cat]) {
+                groups[cat] = {
+                    total: 0,
+                    visibleTotal: 0,
+                    count: 0,
+                    visibleCount: 0
+                };
+            }
+            groups[cat].total += e.total;
+            groups[cat].count++;
+
+            // Logic: Default is usually True if null.
+            const isVis = (e.is_bank_visible !== false);
+            if (isVis) {
+                groups[cat].visibleTotal += e.total;
+                groups[cat].visibleCount++;
+            }
+        });
+
+        // 2. Render Groups
+        return Object.entries(groups).map(([cat, stat]) => {
+            // Determine Check State:
+            // If ALL are visible -> Checked.
+            // If NONE -> Unchecked.
+            // If Mixed -> Checked (interpreted as "Some active").
+            // User requirement: "We can check or uncheck the WHOLE category".
+            // So default assumption: if visibleCount > 0, we show checked.
+            // Clicking uncheck -> sets all to false.
+            // Clicking check -> sets all to true.
+            const isChecked = stat.visibleCount > 0;
+
+            return `
+            <div class="checklist-item" style="display:flex; align-items:center; justify-content:space-between; padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);">
+                <div style="display:flex; align-items:center; gap: 12px; flex:1;">
+                    <label class="custom-checkbox">
+                        <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="window.toggleCategoryBankVisibility('${cat}', this.checked)">
+                        <span class="checkmark"></span>
+                    </label>
+                    <div style="display:flex; flex-direction:column;">
+                        <span style="font-size:1rem; font-weight:500; color:var(--text-primary);">${cat}</span>
+                        <span style="font-size:0.75rem; color:var(--text-secondary);">
+                            Cleared: <span style="color:${stat.visibleTotal > 0 ? '#4ade80' : '#94a3b8'}">${stat.visibleTotal.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span> 
+                            / Total: ${stat.total.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                        </span>
+                    </div>
+                </div>
+                <span style="font-size:1rem; font-weight:600; color:#fca5a5;">-${stat.visibleTotal.toLocaleString()}</span>
+            </div>
+            `;
+        }).join('');
+    }
+
+    window.toggleCategoryBankVisibility = async function (category, isChecked) {
+        if (!currentBatch) return;
+
+        try {
+            await fetch(`${API_BASE}/batches/${currentBatch.id}/toggle-category-bank`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: category, is_bank_visible: isChecked })
+            });
+            loadBalance();
+        } catch (e) {
+            console.error(e);
+            alert('Failed to update category visibility');
+            loadBalance(); // Revert UI
+        }
+    };
 
     // Expose for index.html calls
     window.loadBalance = loadBalance;

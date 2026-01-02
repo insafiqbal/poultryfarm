@@ -580,6 +580,21 @@ def _get_batch_summary_data(batch_id):
     adj_i = dep_i - (dep_k / 2) - (dep_f / 2)
     adj_f = dep_f - (dep_k / 2) - (dep_i / 2)
 
+    # Calculate Cleared Farm Expenses (For Bank Balance)
+    # Includes Farm Expenses + Advances, but ONLY if is_bank_visible is True
+    # Default is True, so legacy data counts unless unchecked
+    cleared_farm_expenses = 0
+    for e in expenses:
+        if e.category not in hima_categories:
+            if e.is_bank_visible:
+                cleared_farm_expenses += e.total
+    
+    # Advances are treated as withdrawals from Bank, so usually they count.
+    # Assuming advances also have is_bank_visible flag now.
+    for e in advances:
+        if e.is_bank_visible:
+             cleared_farm_expenses += e.total
+
     return {
         'batch': batch,
         'all_expenses': all_expenses,
@@ -591,6 +606,7 @@ def _get_batch_summary_data(batch_id):
         'total_sales': total_sales,
         'hima_expenses': hima_expenses_total,
         'farm_expenses': farm_expenses_total,
+        'cleared_farm_expenses': cleared_farm_expenses,
         'total_deposits': total_deposits,
         'total_funds': total_funds,
         'total_advances': total_advances,
@@ -608,7 +624,8 @@ def _get_batch_summary_data(batch_id):
         'partner_share': partner_share,
         'adj_k': adj_k, 'adj_i': adj_i, 'adj_f': adj_f,
         'dep_k': dep_k, 'dep_i': dep_i, 'dep_f': dep_f,
-        'payables_list': [p.to_dict() for p in payables]
+        'payables_list': [p.to_dict() for p in payables],
+        'raw_farm_expenses_list': [e.to_dict() for e in expenses if e.category not in hima_categories] + [e.to_dict() for e in advances]
     }
 
 @app.route('/api/batches/<int:batch_id>/summary', methods=['GET'])
@@ -619,6 +636,7 @@ def get_batch_summary(batch_id):
         'total_sales': data['total_sales'],
         'hima_expenses': data['hima_expenses'],
         'farm_expenses': data['farm_expenses'],
+        'cleared_farm_expenses': data['cleared_farm_expenses'],
         'total_deposits': data['total_deposits'],
         'total_funds': data['total_funds'],
         'total_advances': data['total_advances'],
@@ -645,8 +663,44 @@ def get_batch_summary(batch_id):
             'iqbal': data['partner_share'] + data['adj_i'],
             'farhan': data['partner_share'] + data['adj_f']
         },
-        'payables_list': data.get('payables_list', [])
+        'payables_list': data.get('payables_list', []),
+        'raw_farm_expenses_list': data.get('raw_farm_expenses_list', [])
     })
+
+@app.route('/api/expenses/<int:expense_id>/toggle-bank', methods=['PATCH'])
+@login_required
+def toggle_expense_bank_visibility(expense_id):
+    expense = Expense.query.get_or_404(expense_id)
+    
+    # Toggle (False -> True, True -> False, None -> False)
+    # Default should be True, so if None assume True and toggle to False?
+    # Actually DB default is True.
+    curr = expense.is_bank_visible
+    if curr is None: curr = True
+    
+    expense.is_bank_visible = not curr
+    db.session.commit()
+    
+    return jsonify({'id': expense.id, 'is_bank_visible': expense.is_bank_visible})
+
+@app.route('/api/batches/<int:batch_id>/toggle-category-bank', methods=['POST'])
+@login_required
+def toggle_batch_category_bank(batch_id):
+    data = request.json
+    category = data.get('category')
+    desired_state = data.get('is_bank_visible')
+    
+    if category is None:
+        return jsonify({'error': 'Category required'}), 400
+        
+    # Fetch all expenses (including advances) for this batch and category
+    expenses = Expense.query.filter_by(batch_id=batch_id, category=category).all()
+    
+    for e in expenses:
+        e.is_bank_visible = bool(desired_state)
+        
+    db.session.commit()
+    return jsonify({'message': 'Updated', 'count': len(expenses)})
 
 def _generate_batch_report_pdf(batch_id):
     data = _get_batch_summary_data(batch_id)

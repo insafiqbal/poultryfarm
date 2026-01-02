@@ -94,6 +94,8 @@ class Expense(db.Model):
     total = db.Column(db.Float, default=0.0)
     receipt_url = db.Column(db.String(300), nullable=True)
 
+    is_bank_visible = db.Column(db.Boolean, default=True)
+
     # Relationship
     worker = db.relationship('Worker', backref='expenses', lazy=True)
 
@@ -111,7 +113,8 @@ class Expense(db.Model):
             'qty': self.qty,
             'unit_price': self.unit_price,
             'total': self.total,
-            'receipt_url': self.receipt_url
+            'receipt_url': self.receipt_url,
+            'is_bank_visible': self.is_bank_visible
         }
 
 class Sale(db.Model):
