@@ -189,7 +189,7 @@ def send_otp_email(to_email, otp, action="password reset"):
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if current_user.is_authenticated:
-        return redirect(url_for('index'))
+        return redirect(url_for('dashboard'))
     
     if request.method == 'POST':
         # Handle both standard form and JSON for flexibility
@@ -227,7 +227,7 @@ def login():
             login_user(user, remember=False)
             if request.is_json:
                 return jsonify({'success': True})
-            return redirect(url_for('index'))
+            return redirect(url_for('dashboard'))
         else:
             # Failure: Increment
             user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
@@ -247,7 +247,7 @@ def login():
                  if request.is_json:
                     return jsonify({'success': False, 'error': error_msg}), 401
                  flash(error_msg)
-        
+                 
     return render_template('login.html')
 
 @app.route('/logout')
@@ -263,10 +263,14 @@ def logout():
 
 @app.route('/')
 def index():
-    if not current_user.is_authenticated:
-        return redirect(url_for('login'))
-    
-    # Add cache headers for main page too
+    # Force Login on Root Visit
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    # Cache headers added
     response = make_response(render_template('index.html'))
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     response.headers['Pragma'] = 'no-cache'
